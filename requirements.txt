@@ -1,0 +1,3 @@
+numpy>=1.19.0
+pandas>=2.0.0
+deims==4.0
