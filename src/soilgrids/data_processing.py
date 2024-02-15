@@ -6,7 +6,7 @@ Description: Building block for obtaining selected soil data at given location f
 SoilGrids and derived data sources (Soilgrids REST API, HiHydroSoil map).
 """
 
-# from soilgrids import get_soil_data as gsd
+from soilgrids import get_soil_data as gsd
 from soilgrids import utils as ut
 
 
@@ -30,15 +30,11 @@ def data_processing(
                 "No location defined. Please provide coordinates or DEIMS.iD!"
             )
 
-    # just a check:
-    print(f"soilgrids data_processing is running")
+    data_request = gsd.configure_data_request(coordinates)
+    soil_data = gsd.download_soil_data(data_request)
+    gsd.soil_data_2_txt_file(soil_data)
 
-    # # TODO: modify and create code..
-    # data_requests = gsd.configure_data_request(
-    #     coordinates,
-    # )
-
-    # gsd.download_soil_data(data_set, data_requests, data_resolution)
+    print("g")
 
     # gsd.soil_data_2_txt_file(
     #     data_sets,
