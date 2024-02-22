@@ -17,7 +17,7 @@ def data_processing(
     """
     Download data from Soilgrids. Convert to .txt files.
 
-    Args:
+    Parameters:
         coordinates (list of dict): List of dictionaries with "lat" and "lon" keys.
         deims_id (str): Identifier of the eLTER site.
     """
@@ -30,9 +30,19 @@ def data_processing(
                 "No location defined. Please provide coordinates or DEIMS.iD!"
             )
 
-    # test hihydrosoil
-    # hihydrosoil_data = gsd.query_hihydrosoil_data(coordinates)
-
+    # # SoilGrids part of the data
     soilgrids_request = gsd.configure_soilgrids_request(coordinates)
-    soilgrids_data = gsd.download_soilgrids(soilgrids_request)
-    gsd.soil_data_2_txt_file(soilgrids_data, coordinates)
+    soilgrids_raw = gsd.download_soilgrids(soilgrids_request)
+
+    # Reference layers (in Grassmind order) to assign values correctly
+    soilgrids_layer_names = ["silt", "clay", "sand"]
+    soilgrids_data = gsd.get_soilgrids_data(
+        soilgrids_raw, soilgrids_layer_names, value_type="mean"
+    )
+
+    # HiHydroSoil part of the data
+    hihydrosoil_data = gsd.get_hihydrosoil_data(coordinates)
+
+    gsd.soil_data_to_txt_file(
+        soilgrids_data, soilgrids_layer_names, hihydrosoil_data, coordinates
+    )

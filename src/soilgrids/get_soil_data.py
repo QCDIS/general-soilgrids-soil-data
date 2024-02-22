@@ -2,20 +2,26 @@
 Module Name: get_soil_data.py
 Author: Thomas Banitz, Tuomas Rossi, Franziska Taubert, BioDT
 Date: Februray, 2024
-Description: Functions for downloading and processing selected soil data. 
+Description: Functions for downloading and processing selected soil data, from sources:
+
+             SoilGrids (https://soilgrids.org/)
+             access via API (https://rest.isric.org/soilgrids/v2.0/docs)
+
+             HiHydroSoil v2.0 (https://www.futurewater.eu/projects/hihydrosoil/)
+             access via downloaded TIF Maps
 """
 
-from copernicus import utils as ut_cop
 import numpy as np
 import requests
 from pathlib import Path
+from soilgrids import utils as ut
 
 
 def construct_data_file_name(folder, location, file_suffix):
     """
     Construct data file name.
 
-    Args:
+    Parameters:
         folder (str or Path): Folder where the data file will be stored.
         location (str or dict): Location information ('DEIMS.iD' or {'lat': float, 'lon': float}).
 
@@ -25,22 +31,23 @@ def construct_data_file_name(folder, location, file_suffix):
     # Get folder with path appropriate for different operating systems
     folder = Path(folder)
 
-    if ut_cop.is_dict_of_2_floats(location) and set(location.keys()) == {
-        "lat",
-        "lon",
-    }:  # location as dictionary with lat, lon
+    if ("lat" in location) and ("lon" in location):  # location as dictionary with lat, lon
         formatted_lat = f"lat{location['lat']:.2f}".replace(".", "-")
         formatted_lon = f"lon{location['lon']:.2f}".replace(".", "-")
-        file_name = folder / f"{formatted_lat}_{formatted_lon}_Soil{file_suffix}"
+        file_start = f"{formatted_lat}_{formatted_lon}"
+    elif "deims_id" in location: # DEIMS.iD
+        file_start = location["deims_id"]
     elif isinstance(location, str):  # location as string (DEIMS.iD)
-        file_name = folder / f"{location}__Soil{file_suffix}"
+        file_start = location
     else:
         raise ValueError("Unsupported location format.")
+    
+    file_name = folder / f"{file_start}_Soil{file_suffix}"
 
     return file_name
 
 
-def shape_soildata_4_file(array):
+def shape_soildata_for_file(array):
     """
     Reshape a 1D array to 2D or transpose a 2D array.
 
@@ -79,7 +86,6 @@ def configure_soilgrids_request(coordinates):
             "property": ["clay", "silt", "sand"],
             "depth": [
                 "0-5cm",
-                "0-30cm",
                 "5-15cm",
                 "15-30cm",
                 "30-60cm",
@@ -92,7 +98,7 @@ def configure_soilgrids_request(coordinates):
 
     # full options, Q0.5=median
     # "property": ["bdod", "cec", "cfvo", "clay", "nitrogen", "ocd", "ocs", "phh2o", "sand", "silt", "soc", "wv0010", "wv0033", "wv1500"],
-    # "depth": ["0-5cm", "0-30cm", "5-15cm", "15-30cm", "30-60cm", "60-100cm", "100-200cm"],
+    # "depth": ["0-5cm", "0-30cm" ????, "5-15cm", "15-30cm", "30-60cm", "60-100cm", "100-200cm"],
     # "value": ["Q0.05", "Q0.5", "Q0.95", "mean", "uncertainty"]
 
 
@@ -120,7 +126,51 @@ def download_soilgrids(request):
         raise Exception("Soilgrids REST API download Error:", response.status_code)
 
 
-# # some hihydrosoil tests, not working so far..
+def get_soilgrids_data(soilgrids_data, property_names, value_type="mean"):
+    """
+    Extract property data and units from Soilgrids data.
+
+    Parameters:
+        soilgrids_data (dict): Soilgrids data containing property information.
+        property_names (list): List of properties to extract data and units for.
+        value_type (str): Value to extract data for (default is "mean").
+
+    Returns:
+        tuple: Tuple containing property data array and property units array.
+    """
+    print(f"Reading from Soilgrids data...")
+
+    # Initialize property_data array with zeros, and property_units with empty strings
+    property_data = np.zeros(
+        (
+            len(property_names),
+            len(soilgrids_data["properties"]["layers"][0]["depths"]),
+        ),
+        dtype=float,
+    )
+
+    # Iterate through property_names
+    for p_index, p_name in enumerate(property_names):
+        # Find the corresponding property in soilgrids_data
+        for prop in soilgrids_data["properties"]["layers"]:
+            if prop["name"] == p_name:
+                p_units = prop['unit_measure']['target_units']
+
+                # Iterate through depths and fill the property_data array
+                for d_index, depth in enumerate(prop["depths"]):
+                    property_data[p_index, d_index] = (
+                        depth["values"]["mean"] / prop["unit_measure"]["d_factor"]
+                    )
+                    print(
+                        f"Depth {depth['label']}, {p_name}",
+                        f"mean: {property_data[p_index, d_index]} {p_units}"
+                    )
+                break  # Stop searching once the correct property is found
+
+    return property_data
+
+
+# # some hihydrosoil online query tests, not working so far..
 # def query_hihydrosoil_data(coordinates):
 #     # Initialize the Earth Engine module
 #     ee.Initialize()
@@ -146,148 +196,261 @@ def download_soilgrids(request):
 #     return ksat_value
 
 
-def get_layer_data(soilgrids_data, reference_layers, value_type="mean"):
+def get_hihydrosoil_specs():
     """
-    Extract layer data and units from Soilgrids data.
+    Retrieve a dictionary of HiHydroSoil variable specifications.
+    """
+    hihydrosoil_specs = {
+        "field capacity": {
+            "hhs_name": "WCpF2",
+            "hhs_unit": "m³/m³",
+            "map_to_float": 1E-4,
+            "hhs_to_gm": 1E2,  # to %
+            "gm_unit": "V%",
+            "gm_name": "FC[V%]",
+        },
+        "permanent wilting point": {
+            "hhs_name": "WCpF4.2",
+            "hhs_unit": "m³/m³",
+            "map_to_float": 1E-4,
+            "hhs_to_gm": 1E2,  # to %
+            "gm_unit": "V%",
+            "gm_name": "PWP[V%]",
+        },
+        "soil porosity": {
+            "hhs_name": "WCsat",
+            "hhs_unit": "m³/m³",
+            "map_to_float": 1E-4,
+            "hhs_to_gm": 1E2,  # to %
+            "gm_unit": "V%",
+            "gm_name": "POR[V%]",
+        },
+        "saturated hydraulic conductivity": {
+            "hhs_name": "Ksat",
+            "hhs_unit": "cm/d",
+            "map_to_float": 1E-4,
+            "hhs_to_gm": 1E1,  # cm to mm
+            "gm_unit": "mm/d",
+            "gm_name": "KS[mm/d]",
+        },
+    }
+
+    return hihydrosoil_specs
+
+
+def get_hihydrosoil_map_file(property_name, depth):
+    """
+    Generate file path for a HiHydroSoil map based on the provided property name and depth.
 
     Parameters:
-        soilgrids_data (dict): Soilgrids data containing layer information.
-        reference_layers (list): List of layer names to extract data and units for.
-        value_type (str): Value to extract data for (default is "mean").
+        property_name (str): Name of the soil property (e.g. "WCpF4.2" or "Ksat").
+        depth (str): Depth layer (one of "0-5cm", "5-15cm", "15-30cm", "30-60cm", "60-100cm", "100-200cm").
 
     Returns:
-        tuple: Tuple containing layer data array and layer units array.
+        pathlib.Path: File path to the HiHydroSoil map.
     """
-    print(f"Reading from Soilgrids data...")
+    file_name = property_name + "_" + depth + "_M_250m.tif"
+    
+    return ut.get_package_root() / "soilMapsHiHydroSoil" / file_name
 
-    # Initialize layer_data array with zeros, and layer_units with empty strings
-    layer_data = np.zeros(
+
+def get_hihydrosoil_data(coordinates):
+    """
+    Read HiHydroSoil data for the given coordinates and return as array.
+
+    Parameters:
+        coordinates (tuple): The coordinates (latitude, longitude) to extract HiHydroSoil data from.
+
+    Returns:
+        numpy.ndarray: A 2D array containing property data for various soil properties and depths.
+    """
+    print(f"Reading from HiHydroSoil data...")
+    hhs_properties = get_hihydrosoil_specs()
+    hhs_depths = ["0-5cm", "5-15cm", "15-30cm", "30-60cm", "60-100cm", "100-200cm"]
+
+    # Initialize property_data array with zeros
+    property_data = np.zeros(
         (
-            len(reference_layers),
-            len(soilgrids_data["properties"]["layers"][0]["depths"]),
+            len(hhs_properties),
+            len(hhs_depths),
         ),
         dtype=float,
     )
-    layer_units = [""] * len(reference_layers)
 
-    # Iterate through reference_layers
-    for l_index, layer_name in enumerate(reference_layers):
-        # Find the corresponding layer in soilgrids_data
-        for layer in soilgrids_data["properties"]["layers"]:
-            if layer["name"] == layer_name:
-                layer_units[l_index] = layer['unit_measure']['target_units']
+    # Extract values from tif maps for each property and depth
+    for p_index, (p_name, p_specs) in enumerate(hhs_properties.items()):
+        for d_index, depth in enumerate(hhs_depths):
+            tif_file = get_hihydrosoil_map_file(p_specs["hhs_name"], depth)
 
-                # Iterate through depths and fill the layer_data array
-                for d_index, depth in enumerate(layer["depths"]):
-                    layer_data[l_index, d_index] = (
-                        depth["values"]["mean"] / layer["unit_measure"]["d_factor"]
-                    )
-                    print(
-                        f"Depth {depth['label']}, {layer_name}",
-                        f"mean: {layer_data[l_index, d_index]} {layer_units[l_index]}"
-                    )
-                break  # Stop searching once the correct layer is found
+            # Extract and convert value
+            property_data[p_index, d_index] = (
+                ut.extract_raster_value(tif_file, coordinates) * p_specs["map_to_float"]
+            )
+            print(
+                f"Depth {depth}, {p_name} "
+                f": {property_data[p_index, d_index]:.4f} {p_specs["hhs_unit"]}"
+            )
 
-    return layer_data, layer_units
+    return property_data
 
 
-def map_depths_soilgrids_grassmind(layer_data, layer_names, layer_units):
+def map_depths_soilgrids_grassmind(property_data, property_names, conversion_factor=1, conversion_units=None):
     """
     Map data from Soilgrids depths to Grassmind depths.
 
     Parameters:
-        layer_data (numpy.ndarray): Array containing layer data.
-        layer_names (list): List of layer names.
-        layer_units (list): List of layer units.
+        property_data (numpy.ndarray): Array containing property data.
+        property_names (list): List of property names.
+        conversion_factor (float or array): Conversion factors to apply to the values (default is 1).
+        conversion_units (list, optional): List of units after conversion for each property (default is 'None').
 
     Returns:
         numpy.ndarray: Array containing mapped mean values.
     """
     print(f"Mapping data from Soilgrids depths to Grassmind depths...")
+
     # Define number of new depths, 0-200cm in 10cm steps
     new_depths_number = 20  
     new_depths_step = 10
 
-    # Define soilgrids depths' boundaries
+    # Define SoilGrids depths boundaries
     old_depths = np.array([[0, 5], [5, 15], [15, 30], [30, 60], [60, 100], [100, 200]])
 
+    # Prepare conversion factors and units
+    if isinstance(conversion_factor, float):
+        conversion_factor = np.full((len(property_names),), conversion_factor)
+    else:
+        conversion_factor = np.array(conversion_factor)
+
+    if conversion_units is None:
+        conversion_units = [""] * len(property_names)
+
     # Initialize array to store mapped mean values
-    mapped_data = np.zeros((layer_data.shape[0], new_depths_number), dtype=float)
+    mapped_data = np.zeros((property_data.shape[0], new_depths_number), dtype=float)
 
     # Iterate over each 10cm interval
     for d_new in range(new_depths_number):
         start_depth = d_new * new_depths_step
         end_depth = (d_new + 1) * new_depths_step
 
-        # Find the indices of soilgrid depths within the new 10cm interval
+        # Find the indices of SoilGrid depths within the new 10cm interval
         d_indices = np.where(
             (start_depth < old_depths[:, 1]) & (old_depths[:, 0] < end_depth)
         )[0]
 
-        # For each layer, calculate the mean of old values (1 or 2 values) for the new 10cm interval
-        mapped_data[:, d_new] = np.mean(layer_data[:, d_indices], axis=1)
+        # For each property, calculate the mean of old values (1 or 2 values) for the new 10cm interval
+        mapped_data[:, d_new] = np.mean(property_data[:, d_indices], axis=1) * conversion_factor
         print(f"Depth {start_depth}-{end_depth}cm", end='')
 
-        for l_index in range(len(layer_names)):
-            print(f", {layer_names[l_index]}",
-                  f"mean: {mapped_data[l_index, d_new]:.2f} {layer_units[l_index]}", end='')
+        for p_index in range(len(property_names)):
+            print(f", {property_names[p_index]}"
+                  f": {mapped_data[p_index, d_new]:.4f} {conversion_units[p_index]}", end='')
         
         print("")
 
     return mapped_data
 
 
-def get_layer_means(layer_data, layer_names, conversion_factor=1, conversion_units=None):
+def get_property_means(property_data, property_names, property_units=None):
     """
-    Calculate layer data means over all depths (equal weight for each depth).
+    Calculate property data means over all depths (equal weight for each depth).
 
     Parameters:
-        layer_data (numpy.ndarray): Array containing layer data.
-        layer_names (list): List of layer names.
-        conversion_factor (float): Conversion factor to apply to the values (default is 1).
-        conversion_units (list, optional): List of conversion units for each layer (default is 'None').
+        property_data (numpy.ndarray): Array containing property data.
+        property_names (list): List of property names.
+        property_units (list, optional): List of units for each property (default is 'None').
 
     Returns:
-        numpy.ndarray: Array containing layer means.
+        numpy.ndarray: Array containing property means.
     """
     print(f"Averaging data over all depths...")
-    layer_means = np.mean(layer_data, axis=1) * conversion_factor
+    property_means = np.mean(property_data, axis=1)
 
-    if conversion_units is None:
-        conversion_units = [""] * len(layer_names)
+    if property_units is None:
+        property_units = [""] * len(property_names)
 
-    for l_index in range(len(layer_names)):
-        print(f"Depth 0-200cm, {layer_names[l_index]}",
-              f"mean: {layer_means[l_index]:.4f} {conversion_units[l_index]}")
+    for p_index in range(len(property_names)):
+        print(f"Depth 0-200cm, {property_names[p_index]}",
+              f"mean: {property_means[p_index]:.4f} {property_units[p_index]}")
 
-    return layer_means
+    return property_means
 
 
-def soil_data_2_txt_file(soilgrids_data, coordinates):
-    # Reference layers (in Grassmind order) to assign values correctly
-    reference_layers = ["silt", "clay", "sand"]
+def soil_data_to_txt_file(soilgrids_data, soilgrids_property_names, hihydrosoil_data, coordinates):
+    """
+    Write SoilGrids and HiHydroSoil data to soil data TXT file in Grassmind format.
 
-    layer_data_soilgrids, layer_units = get_layer_data(soilgrids_data, reference_layers, value_type="mean")
-    layer_data_grassmind = map_depths_soilgrids_grassmind(layer_data_soilgrids, reference_layers, layer_units)
+    Parameters:
+        soilgrids_data (numpy.ndarray): SoilGrids data array.
+        soilgrids_property_names (list): Names of SoilGrids properties.
+        hihydrosoil_data (numpy.ndarray): HiHydroSoil data array.
+        coordinates (tuple): Coordinates ('lat' and 'lon') for the data.
 
-    # Mean over all layers for Grassmind input file, convert from % to proportions
-    layer_data_total_means = get_layer_means(layer_data_grassmind, reference_layers, conversion_factor=1e-2)
+    Returns:
+        None
+    """
+    # Prepare SoilGrids data in Grassmind format
+    sgs_to_gm = 1e-2  # % to proportions
+    sgs_data_gm = map_depths_soilgrids_grassmind(soilgrids_data, soilgrids_property_names, sgs_to_gm)
 
+    # Mean over all depths
+    sgs_data_mean = get_property_means(sgs_data_gm, soilgrids_property_names)
+
+    # Prepare HiHydroSoil data in Grassmind format
+    hhs_properties = get_hihydrosoil_specs()
+    hhs_property_names = list(hhs_properties.keys())    
+    hhs_conversion_factor = [specs["hhs_to_gm"] for specs in hhs_properties.values()]
+    hhs_units_gm = [specs["gm_unit"] for specs in hhs_properties.values()]
+    hhs_data_gm = map_depths_soilgrids_grassmind(
+        hihydrosoil_data, hhs_property_names, hhs_conversion_factor, hhs_units_gm
+    )
+
+    # Write collected soil data to TXT file
     file_name = construct_data_file_name("soilDataPrepared", coordinates, ".txt")
 
     # Create data directory if missing
     Path(file_name).parent.mkdir(parents=True, exist_ok=True)
 
-    # Write file to directory
+    # Soilgrids part
+    sgs_data_to_write = shape_soildata_for_file(sgs_data_mean)  # or: sgs_data_gm for all depths
     np.savetxt(
         file_name,
-        shape_soildata_4_file(
-            layer_data_total_means
-        ),  # or: layer_data_grassmind for all depths
+        sgs_data_to_write,
         delimiter="\t",
         fmt="%.4f",
-        header="\t".join(list(map(str.capitalize, reference_layers))),
+        header="\t".join(list(map(str.capitalize, soilgrids_property_names))),
         comments="",
     )
 
-    print(f"Text file with Soilgrids data prepared.")
+    # HiHydroSoil part
+    hhs_data_to_write = shape_soildata_for_file(hhs_data_gm)
+    gm_depth_count = np.arange(1, 21).reshape(-1, 1)
+    gm_rwc = np.ones((20, 1))
+    gm_minn = np.ones((20, 1))
+    hhs_data_to_write = np.concatenate(
+        (
+            gm_depth_count,
+            gm_rwc,
+            hhs_data_to_write[:, :2],
+            gm_minn,
+            hhs_data_to_write[:, 2:4],
+        ),
+        axis=1,
+    )
+    gm_names = [specs["gm_name"] for specs in hhs_properties.values()]
+    gm_names = ["Layer", "RWC[-]"] + gm_names[:2] + ["MinN[gm-2]"] + gm_names[2:4]
+    hhs_header = '\t'.join(map(str, gm_names))
+
+    with open(file_name, "a") as f:  # Open file in append mode
+        f.write('\n')  # Write an empty line
+        np.savetxt(
+            f,  # Use the file handle
+            hhs_data_to_write,
+            delimiter="\t",
+            fmt="%.4f",
+            header=hhs_header,
+            comments="",
+        )
+
+    print(f"Text file with soil data from Soilgrids and HiHydroSoil prepared.")
+
