@@ -10,10 +10,7 @@ from copernicus import utils as ut_cop
 from soilgrids import get_soil_data as gsd
 
 
-def data_processing(
-    coordinates,
-    deims_id,
-):
+def data_processing(coordinates, deims_id):
     """
     Download data from Soilgrids. Convert to .txt files.
 
@@ -30,19 +27,33 @@ def data_processing(
                 "No location defined. Please provide coordinates or DEIMS.iD!"
             )
 
-    # # SoilGrids part of the data
-    soilgrids_request = gsd.configure_soilgrids_request(coordinates)
-    soilgrids_raw = gsd.download_soilgrids(soilgrids_request)
-
-    # Reference layers (in Grassmind order) to assign values correctly
-    soilgrids_layer_names = ["silt", "clay", "sand"]
-    soilgrids_data = gsd.get_soilgrids_data(
-        soilgrids_raw, soilgrids_layer_names, value_type="mean"
+    # SoilGrids composition part of the data
+    composition_property_names = ["silt", "clay", "sand"]
+    composition_request = gsd.configure_soilgrids_request(
+        coordinates, composition_property_names
+    )
+    composition_raw = gsd.download_soilgrids(composition_request)
+    composition_data = gsd.get_soilgrids_data(
+        composition_raw, composition_property_names, value_type="mean"
     )
 
     # HiHydroSoil part of the data
     hihydrosoil_data = gsd.get_hihydrosoil_data(coordinates)
 
+    # SoilGrids nitrogen part of the data
+    nitrogen_property_names = ["nitrogen", "bdod"]
+    nitrogen_request = gsd.configure_soilgrids_request(
+        coordinates, nitrogen_property_names
+    )
+    nitrogen_raw = gsd.download_soilgrids(nitrogen_request)
+    nitrogen_data = gsd.get_soilgrids_data(
+        nitrogen_raw, nitrogen_property_names, value_type="mean"
+    )
+
     gsd.soil_data_to_txt_file(
-        soilgrids_data, soilgrids_layer_names, hihydrosoil_data, coordinates
+        coordinates,
+        composition_data,
+        composition_property_names,
+        hihydrosoil_data,
+        nitrogen_data,
     )

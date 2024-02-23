@@ -68,12 +68,13 @@ def shape_soildata_for_file(array):
         raise ValueError("Input array must be 1D or 2D.")
 
 
-def configure_soilgrids_request(coordinates):
+def configure_soilgrids_request(coordinates, property_names):
     """
-    Configure a request for SoilGrids API based on given coordinates.
+    Configure a request for SoilGrids API based on given coordinates and properties.
 
     Parameters:
-        coordinates (dict): Dictionary containing 'lon' and 'lat' keys representing the longitude and latitude.
+        coordinates (dict): Dictionary containing 'lon' and 'lat' keys.
+        property_names (list): List of properties to download.
 
     Returns:
         dict: Request configuration including URL and parameters.
@@ -83,7 +84,7 @@ def configure_soilgrids_request(coordinates):
         "params": {
             "lon": coordinates["lon"],
             "lat": coordinates["lat"],
-            "property": ["clay", "silt", "sand"],
+            "property": property_names,
             "depth": [
                 "0-5cm",
                 "5-15cm",
@@ -136,7 +137,7 @@ def get_soilgrids_data(soilgrids_data, property_names, value_type="mean"):
         value_type (str): Value to extract data for (default is "mean").
 
     Returns:
-        tuple: Tuple containing property data array and property units array.
+        numpy.ndarray: 2D array containing property data for various soil properties and depths.
     """
     print(f"Reading from Soilgrids data...")
 
@@ -198,7 +199,20 @@ def get_soilgrids_data(soilgrids_data, property_names, value_type="mean"):
 
 def get_hihydrosoil_specs():
     """
-    Retrieve a dictionary of HiHydroSoil variable specifications.
+    Create a dictionary of HiHydroSoil variable specifications.
+    
+    Each variable is identified by its name and includes the following information:
+    - hhs_name: HiHydroSoil variable name.
+    - hhs_unit: HiHydroSoil unit.
+    - map_to_float: Conversion factor from HiHydroSoil integer map value to actual float number.
+    - hhs_to_gm: Conversion factor from HiHydroSoil unit to Grassmind unit.
+    - gm_unit: Grassmind unit.
+    - gm_name: Grassmind variable name, as used in final soil data file.
+
+    Returns:
+        dict: Dictionary of variable specifications, where each key is a variable name,
+              and each value is a dictionary of specifications.
+
     """
     hihydrosoil_specs = {
         "field capacity": {
@@ -259,10 +273,10 @@ def get_hihydrosoil_data(coordinates):
     Read HiHydroSoil data for the given coordinates and return as array.
 
     Parameters:
-        coordinates (tuple): The coordinates (latitude, longitude) to extract HiHydroSoil data from.
+        coordinates (tuple): Coordinates ('lat', 'lon') to extract HiHydroSoil data from.
 
     Returns:
-        numpy.ndarray: A 2D array containing property data for various soil properties and depths.
+        numpy.ndarray: 2D array containing property data for various soil properties and depths.
     """
     print(f"Reading from HiHydroSoil data...")
     hhs_properties = get_hihydrosoil_specs()
@@ -305,7 +319,7 @@ def map_depths_soilgrids_grassmind(property_data, property_names, conversion_fac
         conversion_units (list, optional): List of units after conversion for each property (default is 'None').
 
     Returns:
-        numpy.ndarray: Array containing mapped mean values.
+        numpy.ndarray: Array containing mapped property values.
     """
     print(f"Mapping data from Soilgrids depths to Grassmind depths...")
 
@@ -326,7 +340,12 @@ def map_depths_soilgrids_grassmind(property_data, property_names, conversion_fac
         conversion_units = [""] * len(property_names)
 
     # Initialize array to store mapped mean values
-    mapped_data = np.zeros((property_data.shape[0], new_depths_number), dtype=float)
+    if property_data.ndim == 1:
+        data_to_map = property_data.copy().reshape(1, -1)
+    else:
+        data_to_map = property_data
+
+    mapped_data = np.zeros((data_to_map.shape[0], new_depths_number), dtype=float)
 
     # Iterate over each 10cm interval
     for d_new in range(new_depths_number):
@@ -339,7 +358,7 @@ def map_depths_soilgrids_grassmind(property_data, property_names, conversion_fac
         )[0]
 
         # For each property, calculate the mean of old values (1 or 2 values) for the new 10cm interval
-        mapped_data[:, d_new] = np.mean(property_data[:, d_indices], axis=1) * conversion_factor
+        mapped_data[:, d_new] = np.mean(data_to_map[:, d_indices], axis=1) * conversion_factor
         print(f"Depth {start_depth}-{end_depth}cm", end='')
 
         for p_index in range(len(property_names)):
@@ -376,25 +395,31 @@ def get_property_means(property_data, property_names, property_units=None):
     return property_means
 
 
-def soil_data_to_txt_file(soilgrids_data, soilgrids_property_names, hihydrosoil_data, coordinates):
+def soil_data_to_txt_file(
+    coordinates,
+    composition_data,
+    composition_property_names,
+    hihydrosoil_data,
+    nitrogen_data,
+):
     """
     Write SoilGrids and HiHydroSoil data to soil data TXT file in Grassmind format.
 
     Parameters:
-        soilgrids_data (numpy.ndarray): SoilGrids data array.
-        soilgrids_property_names (list): Names of SoilGrids properties.
-        hihydrosoil_data (numpy.ndarray): HiHydroSoil data array.
         coordinates (tuple): Coordinates ('lat' and 'lon') for the data.
+        composition_data (numpy.ndarray): SoilGrids data array.
+        composition_property_names (list): Names of SoilGrids properties.
+        hihydrosoil_data (numpy.ndarray): HiHydroSoil data array.
 
     Returns:
         None
     """
-    # Prepare SoilGrids data in Grassmind format
-    sgs_to_gm = 1e-2  # % to proportions
-    sgs_data_gm = map_depths_soilgrids_grassmind(soilgrids_data, soilgrids_property_names, sgs_to_gm)
+    # Prepare SoilGrids composition data in Grassmind format
+    composition_to_gm = 1e-2  # % to proportions for all composition values
+    composition_data_gm = map_depths_soilgrids_grassmind(composition_data, composition_property_names, composition_to_gm)
 
     # Mean over all depths
-    sgs_data_mean = get_property_means(sgs_data_gm, soilgrids_property_names)
+    composition_data_mean = get_property_means(composition_data_gm, composition_property_names)
 
     # Prepare HiHydroSoil data in Grassmind format
     hhs_properties = get_hihydrosoil_specs()
@@ -405,20 +430,34 @@ def soil_data_to_txt_file(soilgrids_data, soilgrids_property_names, hihydrosoil_
         hihydrosoil_data, hhs_property_names, hhs_conversion_factor, hhs_units_gm
     )
 
+    # Prepare SoilGrids nitrogen data in Grassmind format 
+    # Not only mineral nitrogen!!
+    # Sum of total nitrogen (ammonia, organic and reduced nitrogen)
+    # as measured by Kjeldahl digestion plus nitrate–nitrite
+
+    # difficult to assess mineral N
+    # small fraction fo total N? general relation?
+    nitrogen_per_volume = nitrogen_data[0, :] * nitrogen_data[1, :]  # unit: g/dm³ (from: g/kg * kg/dm³)
+    nitrogen_to_gm = 1e2 # 10cm depth layers mean 100 dm³ per m²
+    nitrogen_data_gm = map_depths_soilgrids_grassmind(
+        nitrogen_per_volume, ["total nitrogen"], nitrogen_to_gm, ["g/m²"]
+    )
+    print("Warning: Total nitrogen data not used! Using default mineral nitrogen value for all depths: 1 g/m².") 
+
     # Write collected soil data to TXT file
     file_name = construct_data_file_name("soilDataPrepared", coordinates, ".txt")
 
     # Create data directory if missing
     Path(file_name).parent.mkdir(parents=True, exist_ok=True)
 
-    # Soilgrids part
-    sgs_data_to_write = shape_soildata_for_file(sgs_data_mean)  # or: sgs_data_gm for all depths
+    # Soilgrids composition part
+    composition_data_to_write = shape_soildata_for_file(composition_data_mean)  # or: composition_data_gm for all depths
     np.savetxt(
         file_name,
-        sgs_data_to_write,
+        composition_data_to_write,
         delimiter="\t",
         fmt="%.4f",
-        header="\t".join(list(map(str.capitalize, soilgrids_property_names))),
+        header="\t".join(list(map(str.capitalize, composition_property_names))),
         comments="",
     )
 
