@@ -147,7 +147,7 @@ def get_soilgrids_data(soilgrids_data, property_names, value_type="mean"):
         value_type (str): Value to extract data for (default is "mean").
 
     Returns:
-        numpy.ndarray: 2D array containing property data for various soil properties and depths.
+        numpy.ndarray: 2D array containing property data for various soil properties and depths (nan if no data found).
     """
     print(f"Reading from Soilgrids data...")
 
@@ -171,7 +171,7 @@ def get_soilgrids_data(soilgrids_data, property_names, value_type="mean"):
                 for d_index, depth in enumerate(prop["depths"]):
                     property_data[p_index, d_index] = (
                         depth["values"]["mean"] / prop["unit_measure"]["d_factor"]
-                    )
+                    ) if depth["values"]["mean"] is not None else None
                     print(
                         f"Depth {depth['label']}, {p_name}",
                         f"mean: {property_data[p_index, d_index]} {p_units}"
@@ -179,32 +179,6 @@ def get_soilgrids_data(soilgrids_data, property_names, value_type="mean"):
                 break  # Stop searching once the correct property is found
 
     return property_data
-
-
-# # some hihydrosoil online query tests, not working so far..
-# def query_hihydrosoil_data(coordinates):
-#     # Initialize the Earth Engine module
-#     ee.Initialize()
-
-#     # Define the image collection paths
-#     ksat_collection_path = "projects/sat-io/open-datasets/HiHydroSoilv2_0/ksat"
-
-#     # Load the image collections
-#     ksat_collection = ee.ImageCollection(ksat_collection_path)
-
-#     # Define a region of interest (e.g., a point)
-#     point = ee.Geometry.Point(coordinates["lon"], coordinates["lat"])
-
-#     # Get the image values at the point for a specific date
-#     ksat_value = (
-#         ksat_collection.filterBounds(point)
-#         .first()
-#         .reduceRegion(reducer=ee.Reducer.first(), geometry=point)
-#     )
-
-#     print(ksat_value.getInfo())
-
-#     return ksat_value
 
 
 def get_hihydrosoil_specs():
@@ -286,7 +260,7 @@ def get_hihydrosoil_data(coordinates):
         coordinates (tuple): Coordinates ('lat', 'lon') to extract HiHydroSoil data from.
 
     Returns:
-        numpy.ndarray: 2D array containing property data for various soil properties and depths.
+        numpy.ndarray: 2D array containing property data for various soil properties and depths (nan if no data found).
     """
     print(f"Reading from HiHydroSoil data...")
     hhs_properties = get_hihydrosoil_specs()
@@ -307,9 +281,10 @@ def get_hihydrosoil_data(coordinates):
             tif_file = get_hihydrosoil_map_file(p_specs["hhs_name"], depth)
 
             # Extract and convert value
+            value = ut.extract_raster_value(tif_file, coordinates) 
             property_data[p_index, d_index] = (
-                ut.extract_raster_value(tif_file, coordinates) * p_specs["map_to_float"]
-            )
+                value * p_specs["map_to_float"]
+            ) if not (value==-9999) else None
             print(
                 f"Depth {depth}, {p_name} "
                 f": {property_data[p_index, d_index]:.4f} {p_specs["hhs_unit"]}"
@@ -518,4 +493,3 @@ def soil_data_to_txt_file(
         )
     
     print(f"Text file with soil data from Soilgrids and HiHydroSoil prepared.")
-
