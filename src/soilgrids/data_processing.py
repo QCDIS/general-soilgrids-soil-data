@@ -40,20 +40,20 @@ def data_processing(coordinates, deims_id):
     # HiHydroSoil part of the data
     hihydrosoil_data = gsd.get_hihydrosoil_data(coordinates)
 
-    # SoilGrids nitrogen part of the data
-    nitrogen_property_names = ["nitrogen", "bdod"]
-    nitrogen_request = gsd.configure_soilgrids_request(
-        coordinates, nitrogen_property_names
-    )
-    nitrogen_raw = gsd.download_soilgrids(nitrogen_request)
-    nitrogen_data = gsd.get_soilgrids_data(
-        nitrogen_raw, nitrogen_property_names, value_type="mean"
-    )
+    # # SoilGrids nitrogen part of the data
+    # nitrogen_property_names = ["nitrogen", "bdod"]
+    # nitrogen_request = gsd.configure_soilgrids_request(
+    #     coordinates, nitrogen_property_names
+    # )
+    # nitrogen_raw = gsd.download_soilgrids(nitrogen_request)
+    # nitrogen_data = gsd.get_soilgrids_data(
+    #     nitrogen_raw, nitrogen_property_names, value_type="mean"
+    # )
 
     gsd.soil_data_to_txt_file(
         coordinates,
         composition_data,
         composition_property_names,
         hihydrosoil_data,
-        nitrogen_data,
+        # nitrogen_data,
     )

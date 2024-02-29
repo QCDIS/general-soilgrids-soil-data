@@ -15,6 +15,7 @@ import numpy as np
 import requests
 from pathlib import Path
 from soilgrids import utils as ut
+import time
 
 
 def construct_data_file_name(folder, location, file_suffix):
@@ -31,12 +32,12 @@ def construct_data_file_name(folder, location, file_suffix):
     # Get folder with path appropriate for different operating systems
     folder = Path(folder)
 
-    if ("lat" in location) and ("lon" in location):  # location as dictionary with lat, lon
+    if "deims_id" in location: # DEIMS.iD
+        file_start = location["deims_id"]
+    elif ("lat" in location) and ("lon" in location):  # location as dictionary with lat, lon
         formatted_lat = f"lat{location['lat']:.2f}".replace(".", "-")
         formatted_lon = f"lon{location['lon']:.2f}".replace(".", "-")
         file_start = f"{formatted_lat}_{formatted_lon}"
-    elif "deims_id" in location: # DEIMS.iD
-        file_start = location["deims_id"]
     elif isinstance(location, str):  # location as string (DEIMS.iD)
         file_start = location
     else:
@@ -93,7 +94,7 @@ def configure_soilgrids_request(coordinates, property_names):
                 "60-100cm",
                 "100-200cm",
             ],
-            "value": ["Q0.05", "Q0.5", "Q0.95", "mean", "uncertainty"],
+            "value": ["mean"],
         },
     }
 
@@ -116,15 +117,24 @@ def download_soilgrids(request):
     Raises:
         Exception: If the download fails, raises an exception with the error message and status code.
     """
-    print(f"Soilgrids REST API download from {request["url"]}... ", end='')
-    response = requests.get(request["url"], params=request["params"])
+    print(f"Soilgrids REST API download from {request["url"]}... ")   
+    retries = 5  # Maximum number of retries
+    delay = 8  # Initial delay in seconds
 
-    if response.status_code == 200:
-        print(f"completed.")
+    while retries > 0:
+        response = requests.get(request["url"], params=request["params"])
 
-        return response.json()
-    else:
-        raise Exception("Soilgrids REST API download Error:", response.status_code)
+        if response.status_code == 200:
+            return response.json()
+        elif response.status_code == 429:  # Too Many Requests
+            print(f"Rate limited. Retrying in {delay} seconds...")
+            time.sleep(delay)
+            delay *= 2  # Exponential backoff
+            retries -= 1
+        else:
+            raise Exception(f"Soilgrids REST API download Error: {response.reason} ({response.status_code}).")
+
+    raise Exception("Maximum number of retries reached. Failed to download data.")
 
 
 def get_soilgrids_data(soilgrids_data, property_names, value_type="mean"):
@@ -400,7 +410,7 @@ def soil_data_to_txt_file(
     composition_data,
     composition_property_names,
     hihydrosoil_data,
-    nitrogen_data,
+    # nitrogen_data,
 ):
     """
     Write SoilGrids and HiHydroSoil data to soil data TXT file in Grassmind format.
@@ -430,19 +440,19 @@ def soil_data_to_txt_file(
         hihydrosoil_data, hhs_property_names, hhs_conversion_factor, hhs_units_gm
     )
 
-    # Prepare SoilGrids nitrogen data in Grassmind format 
-    # Not only mineral nitrogen!!
-    # Sum of total nitrogen (ammonia, organic and reduced nitrogen)
-    # as measured by Kjeldahl digestion plus nitrate–nitrite
+    # # Prepare SoilGrids nitrogen data in Grassmind format 
+    # # Not only mineral nitrogen!!
+    # # Sum of total nitrogen (ammonia, organic and reduced nitrogen)
+    # # as measured by Kjeldahl digestion plus nitrate–nitrite
 
-    # difficult to assess mineral N
-    # small fraction fo total N? general relation?
-    nitrogen_per_volume = nitrogen_data[0, :] * nitrogen_data[1, :]  # unit: g/dm³ (from: g/kg * kg/dm³)
-    nitrogen_to_gm = 1e2 # 10cm depth layers mean 100 dm³ per m²
-    nitrogen_data_gm = map_depths_soilgrids_grassmind(
-        nitrogen_per_volume, ["total nitrogen"], nitrogen_to_gm, ["g/m²"]
-    )
-    print("Warning: Total nitrogen data not used! Using default mineral nitrogen value for all depths: 1 g/m².") 
+    # # difficult to assess mineral N
+    # # small fraction fo total N? general relation?
+    # nitrogen_per_volume = nitrogen_data[0, :] * nitrogen_data[1, :]  # unit: g/dm³ (from: g/kg * kg/dm³)
+    # nitrogen_to_gm = 1e2 # 10cm depth layers mean 100 dm³ per m²
+    # nitrogen_data_gm = map_depths_soilgrids_grassmind(
+    #     nitrogen_per_volume, ["total nitrogen"], nitrogen_to_gm, ["g/m²"]
+    # )
+    # print("Warning: Total nitrogen data not used! Using default mineral nitrogen value for all depths: 1 g/m².") 
 
     # Write collected soil data to TXT file
     file_name = construct_data_file_name("soilDataPrepared", coordinates, ".txt")
@@ -451,34 +461,36 @@ def soil_data_to_txt_file(
     Path(file_name).parent.mkdir(parents=True, exist_ok=True)
 
     # Soilgrids composition part
-    composition_data_to_write = shape_soildata_for_file(composition_data_mean)  # or: composition_data_gm for all depths
+    composition_data_to_write = shape_soildata_for_file(composition_data_mean)  # all depths below
+    composition_header="\t".join(list(map(str.capitalize, composition_property_names)))
     np.savetxt(
         file_name,
         composition_data_to_write,
         delimiter="\t",
         fmt="%.4f",
-        header="\t".join(list(map(str.capitalize, composition_property_names))),
+        header=composition_header,
         comments="",
     )
 
     # HiHydroSoil part
     hhs_data_to_write = shape_soildata_for_file(hhs_data_gm)
     gm_depth_count = np.arange(1, 21).reshape(-1, 1)
-    gm_rwc = np.ones((20, 1))
-    gm_minn = np.ones((20, 1))
+    # gm_rwc = np.ones((20, 1))
+    # gm_minn = np.ones((20, 1))
     hhs_data_to_write = np.concatenate(
         (
             gm_depth_count,
-            gm_rwc,
+            # gm_rwc,
             hhs_data_to_write[:, :2],
-            gm_minn,
+            # gm_minn,
             hhs_data_to_write[:, 2:4],
         ),
         axis=1,
     )
     gm_names = [specs["gm_name"] for specs in hhs_properties.values()]
-    gm_names = ["Layer", "RWC[-]"] + gm_names[:2] + ["MinN[gm-2]"] + gm_names[2:4]
-    hhs_header = '\t'.join(map(str, gm_names))
+    # gm_names = ["Layer", "RWC[-]"] + gm_names[:2] + ["MinN[gm-2]"] + gm_names[2:4]
+    # hhs_header = '\t'.join(map(str, gm_names))
+    hhs_header = '\t'.join(map(str, ["Layer"] + gm_names))
 
     with open(file_name, "a") as f:  # Open file in append mode
         f.write('\n')  # Write an empty line
@@ -491,5 +503,19 @@ def soil_data_to_txt_file(
             comments="",
         )
 
+    # Soilgrids composition part for all depths, only for information
+    composition_data_to_write = shape_soildata_for_file(composition_data_gm)
+    
+    with open(file_name, "a") as f:  # Open file in append mode
+        f.write('\n')  # Write an empty line
+        np.savetxt(
+            f,  # Use the file handle
+            composition_data_to_write,
+            delimiter="\t",
+            fmt="%.4f",
+            header=composition_header,
+            comments="",
+        )
+    
     print(f"Text file with soil data from Soilgrids and HiHydroSoil prepared.")
 
