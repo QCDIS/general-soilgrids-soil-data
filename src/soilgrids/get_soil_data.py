@@ -437,7 +437,7 @@ def soil_data_to_txt_file(
 
     # Soilgrids composition part
     composition_data_to_write = shape_soildata_for_file(composition_data_mean)  # all depths below
-    composition_header="\t".join(list(map(str.capitalize, composition_property_names)))
+    composition_header ="\t".join(list(map(str.capitalize, composition_property_names)))
     np.savetxt(
         file_name,
         composition_data_to_write,
@@ -480,6 +480,10 @@ def soil_data_to_txt_file(
 
     # Soilgrids composition part for all depths, only for information
     composition_data_to_write = shape_soildata_for_file(composition_data_gm)
+    composition_data_to_write = np.concatenate(
+        (gm_depth_count, composition_data_to_write), axis=1
+    )
+    composition_header = "Layer\t" + composition_header
     
     with open(file_name, "a") as f:  # Open file in append mode
         f.write('\n')  # Write an empty line
