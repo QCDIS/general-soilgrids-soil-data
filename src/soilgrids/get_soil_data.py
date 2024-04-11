@@ -137,14 +137,13 @@ def download_soilgrids(request):
     raise Exception("Maximum number of retries reached. Failed to download data.")
 
 
-def get_soilgrids_data(soilgrids_data, property_names, value_type="mean"):
+def get_soilgrids_data(soilgrids_data, property_names):
     """
     Extract property data and units from Soilgrids data.
 
     Parameters:
         soilgrids_data (dict): Soilgrids data containing property information.
         property_names (list): List of properties to extract data and units for.
-        value_type (str): Value to extract data for (default is "mean").
 
     Returns:
         numpy.ndarray: 2D array containing property data for various soil properties and depths (nan if no data found).

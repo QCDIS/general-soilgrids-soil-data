@@ -162,3 +162,7 @@ cython_debug/
 
 # soil data maps
 soilMapsHiHydroSoil
+
+# downloaded / processed soil data
+# (in case they would be created here)
+soilDataPrepared
