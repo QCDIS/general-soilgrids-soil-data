@@ -15,7 +15,7 @@ def get_package_root():
     Get the root directory of the package containing the current module.
 
     Returns:
-    - Path: The path to the package root directory.
+        Path: The path to the package root directory.
     """
     # Get the file path of the current module
     module_path = Path(__file__).resolve()

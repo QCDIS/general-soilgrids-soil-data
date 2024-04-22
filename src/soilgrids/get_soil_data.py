@@ -18,13 +18,14 @@ from soilgrids import utils as ut
 import time
 
 
-def construct_data_file_name(folder, location, file_suffix):
+def construct_soil_data_file_name(folder, location, file_suffix):
     """
     Construct data file name.
 
     Parameters:
         folder (str or Path): Folder where the data file will be stored.
         location (str or dict): Location information ('DEIMS.iD' or {'lat': float, 'lon': float}).
+        file_suffix (str): File suffix (e.g. '.txt').
 
     Returns:
         Path: Constructed data file name as a Path object.
@@ -185,12 +186,12 @@ def get_hihydrosoil_specs():
     Create a dictionary of HiHydroSoil variable specifications.
     
     Each variable is identified by its name and includes the following information:
-    - hhs_name: HiHydroSoil variable name.
-    - hhs_unit: HiHydroSoil unit.
-    - map_to_float: Conversion factor from HiHydroSoil integer map value to actual float number.
-    - hhs_to_gm: Conversion factor from HiHydroSoil unit to Grassmind unit.
-    - gm_unit: Grassmind unit.
-    - gm_name: Grassmind variable name, as used in final soil data file.
+        hhs_name: HiHydroSoil variable name.
+        hhs_unit: HiHydroSoil unit.
+        map_to_float: Conversion factor from HiHydroSoil integer map value to actual float number.
+        hhs_to_gm: Conversion factor from HiHydroSoil unit to Grassmind unit.
+        gm_unit: Grassmind unit.
+        gm_name: Grassmind variable name, as used in final soil data file.
 
     Returns:
         dict: Dictionary of variable specifications, where each key is a variable name,
@@ -429,7 +430,7 @@ def soil_data_to_txt_file(
     # print("Warning: Total nitrogen data not used! Using default mineral nitrogen value for all depths: 1 g/m².") 
 
     # Write collected soil data to TXT file
-    file_name = construct_data_file_name("soilDataPrepared", coordinates, ".txt")
+    file_name = construct_soil_data_file_name("soilDataPrepared", coordinates, ".txt")
 
     # Create data directory if missing
     Path(file_name).parent.mkdir(parents=True, exist_ok=True)
