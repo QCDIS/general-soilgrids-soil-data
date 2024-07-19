@@ -8,6 +8,7 @@ Description: Utility functions for soilgrids building block.
 from pathlib import Path
 import pyproj
 import rasterio
+import requests
 
 
 def get_package_root():
@@ -79,3 +80,28 @@ def extract_raster_value(tif_file, location):
         value = next(src.sample([(east, north)]))
 
     return value[0]
+
+
+def check_url(url):
+    """
+    Check if a file exists at the specified URL and retrieve its content type.
+
+    Parameters:
+        url (str): URL to check.
+
+    Returns:
+        str: URL if existing (original or redirected), None otherwise.
+    """
+    if url:
+        try:
+            response = requests.head(url, allow_redirects=True)  # Allow redirection
+
+            if response.status_code == 200:
+                return url  # response.url caused problems with HiHydroSoil file opening, but original url works
+                # could be returned: content_type = response.headers.get("content-type")
+            else:
+                return None
+        except requests.ConnectionError:
+            return None
+    else:
+        return None

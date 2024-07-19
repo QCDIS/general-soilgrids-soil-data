@@ -8,7 +8,7 @@ Description: Functions for downloading and processing selected soil data, from s
              access via API (https://rest.isric.org/soilgrids/v2.0/docs)
 
              HiHydroSoil v2.0 (https://www.futurewater.eu/projects/hihydrosoil/)
-             access via downloaded TIF Maps
+             access via TIF Maps, provided upon request to FutureWater
 """
 
 import numpy as np
@@ -32,19 +32,19 @@ def construct_soil_data_file_name(folder, location, file_suffix):
     """
     # Get folder with path appropriate for different operating systems
     folder = Path(folder)
-
-    if "deims_id" in location: # DEIMS.iD
-        file_start = location["deims_id"]
-    elif ("lat" in location) and ("lon" in location):  # location as dictionary with lat, lon
-        formatted_lat = f"lat{location['lat']:.2f}".replace(".", "-")
-        formatted_lon = f"lon{location['lon']:.2f}".replace(".", "-")
+    
+    if ("lat" in location) and ("lon" in location):  # location as dictionary with lat, lon
+        formatted_lat = f"lat{location['lat']:.6f}"    # .replace(".", "-")
+        formatted_lon = f"lon{location['lon']:.6f}"    # .replace(".", "-")
         file_start = f"{formatted_lat}_{formatted_lon}"
+    elif "deims_id" in location: # DEIMS.iD
+        file_start = location["deims_id"]
     elif isinstance(location, str):  # location as string (DEIMS.iD)
         file_start = location
     else:
         raise ValueError("Unsupported location format.")
     
-    file_name = folder / f"{file_start}_Soil{file_suffix}"
+    file_name = folder / f"{file_start}__2020__soil{file_suffix}"
 
     return file_name
 
@@ -118,7 +118,7 @@ def download_soilgrids(request):
     Raises:
         Exception: If the download fails, raises an exception with the error message and status code.
     """
-    print(f"Soilgrids REST API download from {request["url"]}... ")   
+    print(f"Soilgrids REST API download from {request["url"]} ... ")   
     retries = 5  # Maximum number of retries
     delay = 8  # Initial delay in seconds
 
@@ -128,7 +128,7 @@ def download_soilgrids(request):
         if response.status_code == 200:
             return response.json()
         elif response.status_code == 429:  # Too Many Requests
-            print(f"Rate limited. Retrying in {delay} seconds...")
+            print(f"Rate limited. Retrying in {delay} seconds ...")
             time.sleep(delay)
             delay *= 2  # Exponential backoff
             retries -= 1
@@ -149,7 +149,7 @@ def get_soilgrids_data(soilgrids_data, property_names):
     Returns:
         numpy.ndarray: 2D array containing property data for various soil properties and depths (nan if no data found).
     """
-    print(f"Reading from Soilgrids data...")
+    print(f"Reading Soilgrids data ...")
 
     # Initialize property_data array with zeros, and property_units with empty strings
     property_data = np.zeros(
@@ -236,33 +236,54 @@ def get_hihydrosoil_specs():
     return hihydrosoil_specs
 
 
-def get_hihydrosoil_map_file(property_name, depth):
+def get_hihydrosoil_map_file(property_name, depth, map_local=False):
     """
-    Generate file path for a HiHydroSoil map based on the provided property name and depth.
+    Generate file path or url for a HiHydroSoil map based on the provided property name and depth.
 
     Parameters:
         property_name (str): Name of the soil property (e.g. "WCpF4.2" or "Ksat").
         depth (str): Depth layer (one of "0-5cm", "5-15cm", "15-30cm", "30-60cm", "60-100cm", "100-200cm").
+        map_local (bool): Look for map as local file (default is False).
 
     Returns:
-        pathlib.Path: File path to the HiHydroSoil map.
+        pathlib.Path or URL: File path or URL to the HiHydroSoil map.
     """
     file_name = property_name + "_" + depth + "_M_250m.tif"
-    
-    return ut.get_package_root() / "soilMapsHiHydroSoil" / file_name
+
+    if map_local:
+        # map_file = ut.get_package_root() / "soilMapsHiHydroSoil" / file_name
+        map_file = Path(r'c:/_D/biodt_data/') / "soilMapsHiHydroSoil" / file_name
+        
+        if map_file.is_file():
+            return map_file 
+        else:
+            print(f"Error: Local file '{map_file}' not found! Trying to access via url ...")
+            map_local = False
+
+    if not map_local:
+        map_file = "http://134.94.199.14/grasslands-pdt/soilMapsHiHydroSoil/" + file_name        
+
+        if ut.check_url(map_file):
+            return map_file
+        else:
+            print(f"Error: File '{map_file}' not found!")
+
+    return None
 
 
-def get_hihydrosoil_data(coordinates):
+
+def get_hihydrosoil_data(coordinates, map_local):
     """
     Read HiHydroSoil data for the given coordinates and return as array.
 
     Parameters:
         coordinates (tuple): Coordinates ('lat', 'lon') to extract HiHydroSoil data from.
+        map_local (bool): Look for map as local file instead of url.
 
     Returns:
         numpy.ndarray: 2D array containing property data for various soil properties and depths (nan if no data found).
     """
-    print(f"Reading from HiHydroSoil data...")
+    print(f"Reading HiHydroSoil data ...")
     hhs_properties = get_hihydrosoil_specs()
     hhs_depths = ["0-5cm", "5-15cm", "15-30cm", "30-60cm", "60-100cm", "100-200cm"]
 
@@ -278,17 +299,20 @@ def get_hihydrosoil_data(coordinates):
     # Extract values from tif maps for each property and depth
     for p_index, (p_name, p_specs) in enumerate(hhs_properties.items()):
         for d_index, depth in enumerate(hhs_depths):
-            tif_file = get_hihydrosoil_map_file(p_specs["hhs_name"], depth)
+            map_file = get_hihydrosoil_map_file(p_specs["hhs_name"], depth, map_local)
 
-            # Extract and convert value
-            value = ut.extract_raster_value(tif_file, coordinates) 
-            property_data[p_index, d_index] = (
-                value * p_specs["map_to_float"]
-            ) if not (value==-9999) else None
-            print(
-                f"Depth {depth}, {p_name} "
-                f": {property_data[p_index, d_index]:.4f} {p_specs["hhs_unit"]}"
-            )
+            if map_file:
+                print(f"Reading from file '{map_file}' ...")
+                
+                # Extract and convert value
+                value = ut.extract_raster_value(map_file, coordinates) 
+                property_data[p_index, d_index] = (
+                    value * p_specs["map_to_float"]
+                ) if not (value==-9999) else None
+                print(
+                    f"Depth {depth}, {p_name}"
+                    f": {property_data[p_index, d_index]:.4f} {p_specs["hhs_unit"]}"
+                )
 
     return property_data
 
@@ -306,7 +330,7 @@ def map_depths_soilgrids_grassmind(property_data, property_names, conversion_fac
     Returns:
         numpy.ndarray: Array containing mapped property values.
     """
-    print(f"Mapping data from Soilgrids depths to Grassmind depths...")
+    print(f"Mapping data from Soilgrids depths to Grassmind depths ...")
 
     # Define number of new depths, 0-200cm in 10cm steps
     new_depths_number = 20  
@@ -367,7 +391,7 @@ def get_property_means(property_data, property_names, property_units=None):
     Returns:
         numpy.ndarray: Array containing property means.
     """
-    print(f"Averaging data over all depths...")
+    print(f"Averaging data over all depths ...")
     property_means = np.mean(property_data, axis=1)
 
     if property_units is None:
