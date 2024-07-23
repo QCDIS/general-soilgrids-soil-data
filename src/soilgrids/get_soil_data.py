@@ -34,8 +34,8 @@ def construct_soil_data_file_name(folder, location, file_suffix):
     folder = Path(folder)
     
     if ("lat" in location) and ("lon" in location):  # location as dictionary with lat, lon
-        formatted_lat = f"lat{location['lat']:.6f}"    # .replace(".", "-")
-        formatted_lon = f"lon{location['lon']:.6f}"    # .replace(".", "-")
+        formatted_lat = f"lat{location['lat']:.6f}"  # .replace(".", "-")
+        formatted_lon = f"lon{location['lon']:.6f}"  # .replace(".", "-")
         file_start = f"{formatted_lat}_{formatted_lon}"
     elif "deims_id" in location: # DEIMS.iD
         file_start = location["deims_id"]
