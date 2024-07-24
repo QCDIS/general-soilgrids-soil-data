@@ -189,9 +189,9 @@ def get_hihydrosoil_specs():
         hhs_name: HiHydroSoil variable name.
         hhs_unit: HiHydroSoil unit.
         map_to_float: Conversion factor from HiHydroSoil integer map value to actual float number.
-        hhs_to_gm: Conversion factor from HiHydroSoil unit to Grassmind unit.
-        gm_unit: Grassmind unit.
-        gm_name: Grassmind variable name, as used in final soil data file.
+        hhs_to_gmd: Conversion factor from HiHydroSoil unit to Grassmind unit.
+        gmd_unit: Grassmind unit.
+        gmd_name: Grassmind variable name, as used in final soil data file.
 
     Returns:
         dict: Dictionary of variable specifications, where each key is a variable name,
@@ -203,33 +203,33 @@ def get_hihydrosoil_specs():
             "hhs_name": "WCpF2",
             "hhs_unit": "m³/m³",
             "map_to_float": 1E-4,
-            "hhs_to_gm": 1E2,  # to %
-            "gm_unit": "V%",
-            "gm_name": "FC[V%]",
+            "hhs_to_gmd": 1E2,  # to %
+            "gmd_unit": "V%",
+            "gmd_name": "FC[V%]",
         },
         "permanent wilting point": {
             "hhs_name": "WCpF4.2",
             "hhs_unit": "m³/m³",
             "map_to_float": 1E-4,
-            "hhs_to_gm": 1E2,  # to %
-            "gm_unit": "V%",
-            "gm_name": "PWP[V%]",
+            "hhs_to_gmd": 1E2,  # to %
+            "gmd_unit": "V%",
+            "gmd_name": "PWP[V%]",
         },
         "soil porosity": {
             "hhs_name": "WCsat",
             "hhs_unit": "m³/m³",
             "map_to_float": 1E-4,
-            "hhs_to_gm": 1E2,  # to %
-            "gm_unit": "V%",
-            "gm_name": "POR[V%]",
+            "hhs_to_gmd": 1E2,  # to %
+            "gmd_unit": "V%",
+            "gmd_name": "POR[V%]",
         },
         "saturated hydraulic conductivity": {
             "hhs_name": "Ksat",
             "hhs_unit": "cm/d",
             "map_to_float": 1E-4,
-            "hhs_to_gm": 1E1,  # cm to mm
-            "gm_unit": "mm/d",
-            "gm_name": "KS[mm/d]",
+            "hhs_to_gmd": 1E1,  # cm to mm
+            "gmd_unit": "mm/d",
+            "gmd_name": "KS[mm/d]",
         },
     }
 
@@ -424,19 +424,19 @@ def soil_data_to_txt_file(
         None
     """
     # Prepare SoilGrids composition data in Grassmind format
-    composition_to_gm = 1e-2  # % to proportions for all composition values
-    composition_data_gm = map_depths_soilgrids_grassmind(composition_data, composition_property_names, composition_to_gm)
+    composition_to_gmd = 1e-2  # % to proportions for all composition values
+    composition_data_gmd = map_depths_soilgrids_grassmind(composition_data, composition_property_names, composition_to_gmd)
 
     # Mean over all depths
-    composition_data_mean = get_property_means(composition_data_gm, composition_property_names)
+    composition_data_mean = get_property_means(composition_data_gmd, composition_property_names)
 
     # Prepare HiHydroSoil data in Grassmind format
     hhs_properties = get_hihydrosoil_specs()
     hhs_property_names = list(hhs_properties.keys())    
-    hhs_conversion_factor = [specs["hhs_to_gm"] for specs in hhs_properties.values()]
-    hhs_units_gm = [specs["gm_unit"] for specs in hhs_properties.values()]
-    hhs_data_gm = map_depths_soilgrids_grassmind(
-        hihydrosoil_data, hhs_property_names, hhs_conversion_factor, hhs_units_gm
+    hhs_conversion_factor = [specs["hhs_to_gmd"] for specs in hhs_properties.values()]
+    hhs_units_gmd = [specs["gmd_unit"] for specs in hhs_properties.values()]
+    hhs_data_gmd = map_depths_soilgrids_grassmind(
+        hihydrosoil_data, hhs_property_names, hhs_conversion_factor, hhs_units_gmd
     )
 
     # # Prepare SoilGrids nitrogen data in Grassmind format 
@@ -447,9 +447,9 @@ def soil_data_to_txt_file(
     # # difficult to assess mineral N
     # # small fraction fo total N? general relation?
     # nitrogen_per_volume = nitrogen_data[0, :] * nitrogen_data[1, :]  # unit: g/dm³ (from: g/kg * kg/dm³)
-    # nitrogen_to_gm = 1e2 # 10cm depth layers mean 100 dm³ per m²
-    # nitrogen_data_gm = map_depths_soilgrids_grassmind(
-    #     nitrogen_per_volume, ["total nitrogen"], nitrogen_to_gm, ["g/m²"]
+    # nitrogen_to_gmd = 1e2 # 10cm depth layers mean 100 dm³ per m²
+    # nitrogen_data_gmd = map_depths_soilgrids_grassmind(
+    #     nitrogen_per_volume, ["total nitrogen"], nitrogen_to_gmd, ["g/m²"]
     # )
     # print("Warning: Total nitrogen data not used! Using default mineral nitrogen value for all depths: 1 g/m².") 
 
@@ -472,24 +472,24 @@ def soil_data_to_txt_file(
     )
 
     # HiHydroSoil part
-    hhs_data_to_write = shape_soildata_for_file(hhs_data_gm)
-    gm_depth_count = np.arange(1, 21).reshape(-1, 1)
-    # gm_rwc = np.ones((20, 1))
-    # gm_minn = np.ones((20, 1))
+    hhs_data_to_write = shape_soildata_for_file(hhs_data_gmd)
+    gmd_depth_count = np.arange(1, 21).reshape(-1, 1)
+    # gmd_rwc = np.ones((20, 1))
+    # gmd_minn = np.ones((20, 1))
     hhs_data_to_write = np.concatenate(
         (
-            gm_depth_count,
-            # gm_rwc,
+            gmd_depth_count,
+            # gmd_rwc,
             hhs_data_to_write[:, :2],
-            # gm_minn,
+            # gmd_minn,
             hhs_data_to_write[:, 2:4],
         ),
         axis=1,
     )
-    gm_names = [specs["gm_name"] for specs in hhs_properties.values()]
-    # gm_names = ["Layer", "RWC[-]"] + gm_names[:2] + ["MinN[gm-2]"] + gm_names[2:4]
-    # hhs_header = '\t'.join(map(str, gm_names))
-    hhs_header = '\t'.join(map(str, ["Layer"] + gm_names))
+    gmd_names = [specs["gmd_name"] for specs in hhs_properties.values()]
+    # gmd_names = ["Layer", "RWC[-]"] + gmd_names[:2] + ["MinN[gmd-2]"] + gmd_names[2:4]
+    # hhs_header = '\t'.join(map(str, gmd_names))
+    hhs_header = '\t'.join(map(str, ["Layer"] + gmd_names))
 
     with open(file_name, "a") as f:  # Open file in append mode
         f.write('\n')  # Write an empty line
@@ -502,22 +502,22 @@ def soil_data_to_txt_file(
             comments="",
         )
 
-    # Soilgrids composition part for all depths, only for information
-    composition_data_to_write = shape_soildata_for_file(composition_data_gm)
-    composition_data_to_write = np.concatenate(
-        (gm_depth_count, composition_data_to_write), axis=1
-    )
-    composition_header = "Layer\t" + composition_header
+    # # Soilgrids composition part for all depths, only for information
+    # composition_data_to_write = shape_soildata_for_file(composition_data_gmd)
+    # composition_data_to_write = np.concatenate(
+    #     (gmd_depth_count, composition_data_to_write), axis=1
+    # )
+    # composition_header = "Layer\t" + composition_header
     
-    with open(file_name, "a") as f:  # Open file in append mode
-        f.write('\n')  # Write an empty line
-        np.savetxt(
-            f,  # Use the file handle
-            composition_data_to_write,
-            delimiter="\t",
-            fmt="%.4f",
-            header=composition_header,
-            comments="",
-        )
+    # with open(file_name, "a") as f:  # Open file in append mode
+    #     f.write('\n')  # Write an empty line
+    #     np.savetxt(
+    #         f,  # Use the file handle
+    #         composition_data_to_write,
+    #         delimiter="\t",
+    #         fmt="%.4f",
+    #         header=composition_header,
+    #         comments="",
+    #     )
     
     print(f"Text file with soil data from Soilgrids and HiHydroSoil prepared.")
