@@ -34,8 +34,8 @@ def construct_soil_data_file_name(folder, location, file_suffix):
     folder = Path(folder)
     
     if ("lat" in location) and ("lon" in location):  # location as dictionary with lat, lon
-        formatted_lat = f"lat{location['lat']:.6f}"  # .replace(".", "-")
-        formatted_lon = f"lon{location['lon']:.6f}"  # .replace(".", "-")
+        formatted_lat = f"lat{location["lat"]:.6f}"  
+        formatted_lon = f"lon{location["lon"]:.6f}"  
         file_start = f"{formatted_lat}_{formatted_lon}"
     elif "deims_id" in location: # DEIMS.iD
         file_start = location["deims_id"]
@@ -165,7 +165,7 @@ def get_soilgrids_data(soilgrids_data, property_names):
         # Find the corresponding property in soilgrids_data
         for prop in soilgrids_data["properties"]["layers"]:
             if prop["name"] == p_name:
-                p_units = prop['unit_measure']['target_units']
+                p_units = prop["unit_measure"]["target_units"]
 
                 # Iterate through depths and fill the property_data array
                 for d_index, depth in enumerate(prop["depths"]):
@@ -173,7 +173,7 @@ def get_soilgrids_data(soilgrids_data, property_names):
                         depth["values"]["mean"] / prop["unit_measure"]["d_factor"]
                     ) if depth["values"]["mean"] is not None else None
                     print(
-                        f"Depth {depth['label']}, {p_name}",
+                        f"Depth {depth["label"]}, {p_name}",
                         f"mean: {property_data[p_index, d_index]} {p_units}"
                     )
                 break  # Stop searching once the correct property is found
@@ -252,7 +252,7 @@ def get_hihydrosoil_map_file(property_name, depth, map_local=False):
 
     if map_local:
         # map_file = ut.get_package_root() / "soilMapsHiHydroSoil" / file_name
-        map_file = Path(r'c:/_D/biodt_data/') / "soilMapsHiHydroSoil" / file_name
+        map_file = Path(r"c:/_D/biodt_data/") / "soilMapsHiHydroSoil" / file_name
         
         if map_file.is_file():
             return map_file 
@@ -269,7 +269,6 @@ def get_hihydrosoil_map_file(property_name, depth, map_local=False):
             print(f"Error: File '{map_file}' not found!")
 
     return None
-
 
 
 def get_hihydrosoil_data(coordinates, map_local):
@@ -368,11 +367,11 @@ def map_depths_soilgrids_grassmind(property_data, property_names, conversion_fac
 
         # For each property, calculate the mean of old values (1 or 2 values) for the new 10cm interval
         mapped_data[:, d_new] = np.mean(data_to_map[:, d_indices], axis=1) * conversion_factor
-        print(f"Depth {start_depth}-{end_depth}cm", end='')
+        print(f"Depth {start_depth}-{end_depth}cm", end="")
 
         for p_index in range(len(property_names)):
             print(f", {property_names[p_index]}"
-                  f": {mapped_data[p_index, d_new]:.4f} {conversion_units[p_index]}", end='')
+                  f": {mapped_data[p_index, d_new]:.4f} {conversion_units[p_index]}", end="")
         
         print("")
 
@@ -487,12 +486,10 @@ def soil_data_to_txt_file(
         axis=1,
     )
     gmd_names = [specs["gmd_name"] for specs in hhs_properties.values()]
-    # gmd_names = ["Layer", "RWC[-]"] + gmd_names[:2] + ["MinN[gmd-2]"] + gmd_names[2:4]
-    # hhs_header = '\t'.join(map(str, gmd_names))
-    hhs_header = '\t'.join(map(str, ["Layer"] + gmd_names))
+    hhs_header = "\t".join(map(str, ["Layer"] + gmd_names))
 
     with open(file_name, "a") as f:  # Open file in append mode
-        f.write('\n')  # Write an empty line
+        f.write("\n")  # Write an empty line
         np.savetxt(
             f,  # Use the file handle
             hhs_data_to_write,
@@ -510,7 +507,7 @@ def soil_data_to_txt_file(
     # composition_header = "Layer\t" + composition_header
     
     # with open(file_name, "a") as f:  # Open file in append mode
-    #     f.write('\n')  # Write an empty line
+    #     f.write("\n")  # Write an empty line
     #     np.savetxt(
     #         f,  # Use the file handle
     #         composition_data_to_write,
