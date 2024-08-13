@@ -10,13 +10,14 @@ from copernicus import utils as ut_cop
 from soilgrids import get_soil_data as gsd
 
 
-def data_processing(coordinates, deims_id, hhs_local=False):
+def data_processing(coordinates, deims_id, file_name=None, hhs_local=False):
     """
     Download data from Soilgrids and HiHydroSoil maps. Convert to .txt files.
 
     Parameters:
         coordinates (list of dict): List of dictionaries with "lat" and "lon" keys.
         deims_id (str): Identifier of the eLTER site.
+        file_name (str or Path): File name to save soil data (default is None, default file name is used if not provided).
         hhs_local (bool): Look for HiHydroSoil maps as local files (default is False).
     """
 
@@ -56,5 +57,6 @@ def data_processing(coordinates, deims_id, hhs_local=False):
         composition_data,
         composition_property_names,
         hihydrosoil_data,
+        file_name,
         # nitrogen_data,
     )

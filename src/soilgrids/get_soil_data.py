@@ -408,6 +408,7 @@ def soil_data_to_txt_file(
     composition_data,
     composition_property_names,
     hihydrosoil_data,
+    file_name=None,
     # nitrogen_data,
 ):
     """
@@ -418,6 +419,7 @@ def soil_data_to_txt_file(
         composition_data (numpy.ndarray): SoilGrids data array.
         composition_property_names (list): Names of SoilGrids properties.
         hihydrosoil_data (numpy.ndarray): HiHydroSoil data array.
+        file_name (str or Path): File name to save soil data (default is None, default file name is used if not provided).
 
     Returns:
         None
@@ -453,7 +455,8 @@ def soil_data_to_txt_file(
     # print("Warning: Total nitrogen data not used! Using default mineral nitrogen value for all depths: 1 g/m².") 
 
     # Write collected soil data to TXT file
-    file_name = construct_soil_data_file_name("soilDataPrepared", coordinates, ".txt")
+    if not file_name:
+        file_name = construct_soil_data_file_name("soilDataPrepared", coordinates, ".txt")
 
     # Create data directory if missing
     Path(file_name).parent.mkdir(parents=True, exist_ok=True)
@@ -517,4 +520,4 @@ def soil_data_to_txt_file(
     #         comments="",
     #     )
     
-    print(f"Text file with soil data from Soilgrids and HiHydroSoil prepared.")
+    print(f"Processed soil data from Soilgrids and HiHydroSoil written to file '{file_name}'.")
