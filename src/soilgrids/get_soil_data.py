@@ -11,6 +11,7 @@ Description: Functions for downloading and processing selected soil data, from s
              access via TIF Maps, provided upon request to FutureWater
 """
 
+from datetime import datetime, timezone
 import numpy as np
 import requests
 from pathlib import Path
@@ -113,7 +114,7 @@ def download_soilgrids(request):
         request (dict): Dictionary containing the request URL (key: 'url') and parameters (key: 'params').
 
     Returns:
-        dict: JSON response data.
+        tuple: JSON response data (dict) and time stamp.
 
     Raises:
         Exception: If the download fails, raises an exception with the error message and status code.
@@ -123,10 +124,11 @@ def download_soilgrids(request):
     delay = 8  # Initial delay in seconds
 
     while retries > 0:
+        time_stamp = datetime.now(timezone.utc).isoformat()
         response = requests.get(request["url"], params=request["params"])
 
         if response.status_code == 200:
-            return response.json()
+            return response.json(), time_stamp
         elif response.status_code == 429:  # Too Many Requests
             print(f"Rate limited. Retrying in {delay} seconds ...")
             time.sleep(delay)
@@ -280,7 +282,7 @@ def get_hihydrosoil_data(coordinates, map_local):
         map_local (bool): Look for map as local file instead of url.
 
     Returns:
-        numpy.ndarray: 2D array containing property data for various soil properties and depths (nan if no data found).
+        tuple: Property data for various soil properties and depths (2D numpy.ndarray, nan if no data found), and list of sources used and query time stamps.
     """
     print(f"Reading HiHydroSoil data ...")
     hhs_properties = get_hihydrosoil_specs()
@@ -296,6 +298,8 @@ def get_hihydrosoil_data(coordinates, map_local):
     )
 
     # Extract values from tif maps for each property and depth
+    query_protocol =[]  
+
     for p_index, (p_name, p_specs) in enumerate(hhs_properties.items()):
         for d_index, depth in enumerate(hhs_depths):
             map_file = get_hihydrosoil_map_file(p_specs["hhs_name"], depth, map_local)
@@ -304,6 +308,7 @@ def get_hihydrosoil_data(coordinates, map_local):
                 print(f"Reading from file '{map_file}' ...")
                 
                 # Extract and convert value
+                time_stamp = datetime.now(timezone.utc).isoformat()
                 value = ut.extract_raster_value(map_file, coordinates) 
                 property_data[p_index, d_index] = (
                     value * p_specs["map_to_float"]
@@ -312,8 +317,9 @@ def get_hihydrosoil_data(coordinates, map_local):
                     f"Depth {depth}, {p_name}"
                     f": {property_data[p_index, d_index]:.4f} {p_specs["hhs_unit"]}"
                 )
+                query_protocol.append([map_file, time_stamp])
 
-    return property_data
+    return property_data, query_protocol
 
 
 def map_depths_soilgrids_grassmind(property_data, property_names, conversion_factor=1, conversion_units=None):
@@ -407,7 +413,8 @@ def soil_data_to_txt_file(
     coordinates,
     composition_data,
     composition_property_names,
-    hihydrosoil_data,
+    hihydrosoil_data,    
+    data_query_protocol,
     file_name=None,
     # nitrogen_data,
 ):
@@ -419,6 +426,7 @@ def soil_data_to_txt_file(
         composition_data (numpy.ndarray): SoilGrids data array.
         composition_property_names (list): Names of SoilGrids properties.
         hihydrosoil_data (numpy.ndarray): HiHydroSoil data array.
+        data_query_protocol (list): List of sources and time stamps from retrieving soil data.
         file_name (str or Path): File name to save soil data (default is None, default file name is used if not provided).
 
     Returns:
@@ -521,3 +529,12 @@ def soil_data_to_txt_file(
     #     )
     
     print(f"Processed soil data from Soilgrids and HiHydroSoil written to file '{file_name}'.")
+
+    if data_query_protocol:
+        file_name = file_name.with_name(file_name.stem + "__data_query_protocol" + file_name.suffix)
+        ut.list_to_file(
+            data_query_protocol,
+            ["soil_data_source", "time_stamp"],
+            file_name,
+        )
+

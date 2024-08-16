@@ -6,7 +6,7 @@ Description: Building block for obtaining selected soil data at given location f
 SoilGrids and derived data sources (Soilgrids REST API, HiHydroSoil maps).
 """
 
-from copernicus import utils as ut_cop
+from soilgrids import utils as ut
 from soilgrids import get_soil_data as gsd
 
 
@@ -23,7 +23,7 @@ def data_processing(coordinates, deims_id, file_name=None, hhs_local=False):
 
     if coordinates is None:
         if deims_id:
-            coordinates = ut_cop.get_deims_coordinates(deims_id)
+            coordinates = ut.get_deims_coordinates(deims_id)
         else:
             raise ValueError(
                 "No location defined. Please provide coordinates or DEIMS.iD!"
@@ -34,13 +34,17 @@ def data_processing(coordinates, deims_id, file_name=None, hhs_local=False):
     composition_request = gsd.configure_soilgrids_request(
         coordinates, composition_property_names
     )
-    composition_raw = gsd.download_soilgrids(composition_request)
+    composition_raw, time_stamp = gsd.download_soilgrids(composition_request)
+    data_query_protocol = [[composition_request["url"], time_stamp]]
     composition_data = gsd.get_soilgrids_data(
         composition_raw, composition_property_names
     )
 
     # HiHydroSoil part of the data
-    hihydrosoil_data = gsd.get_hihydrosoil_data(coordinates, hhs_local)
+    hihydrosoil_data, hihydrosol_queries = gsd.get_hihydrosoil_data(
+        coordinates, hhs_local
+    )
+    data_query_protocol.extend(hihydrosol_queries)
 
     # # SoilGrids nitrogen part of the data
     # nitrogen_property_names = ["nitrogen", "bdod"]
@@ -57,6 +61,7 @@ def data_processing(coordinates, deims_id, file_name=None, hhs_local=False):
         composition_data,
         composition_property_names,
         hihydrosoil_data,
+        data_query_protocol,
         file_name,
         # nitrogen_data,
     )
