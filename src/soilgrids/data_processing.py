@@ -41,10 +41,10 @@ def data_processing(coordinates, deims_id, file_name=None, hhs_local=False):
     )
 
     # HiHydroSoil part of the data
-    hihydrosoil_data, hihydrosol_queries = gsd.get_hihydrosoil_data(
+    hihydrosoil_data, hihydrosoil_queries = gsd.get_hihydrosoil_data(
         coordinates, hhs_local
     )
-    data_query_protocol.extend(hihydrosol_queries)
+    data_query_protocol.extend(hihydrosoil_queries)
 
     # # SoilGrids nitrogen part of the data
     # nitrogen_property_names = ["nitrogen", "bdod"]

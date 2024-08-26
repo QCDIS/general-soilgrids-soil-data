@@ -38,7 +38,7 @@ def construct_soil_data_file_name(folder, location, file_suffix):
         formatted_lat = f"lat{location["lat"]:.6f}"  
         formatted_lon = f"lon{location["lon"]:.6f}"  
         file_start = f"{formatted_lat}_{formatted_lon}"
-    elif "deims_id" in location: # DEIMS.iD
+    elif "deims_id" in location:  # DEIMS.iD
         file_start = location["deims_id"]
     elif isinstance(location, str):  # location as string (DEIMS.iD)
         file_start = location
@@ -106,38 +106,60 @@ def configure_soilgrids_request(coordinates, property_names):
     # "value": ["Q0.05", "Q0.5", "Q0.95", "mean", "uncertainty"]
 
 
-def download_soilgrids(request):
+def download_soilgrids(request, attempts=6, delay_exponential=8, delay_linear=2):
     """
-    Download data from SoilGrids REST API.
+    Download data from SoilGrids REST API with retry functionality.
 
     Parameters:
         request (dict): Dictionary containing the request URL (key: 'url') and parameters (key: 'params').
+        attempts (int): Total number of attempts (including the initial try). Default is 6.
+        delay_exponential (int): Initial delay in seconds for request rate limit errors (default is 8).
+        delay_linear (int): Delay in seconds for gateway errors and other failed requests (default is 2).
 
     Returns:
         tuple: JSON response data (dict) and time stamp.
 
     Raises:
-        Exception: If the download fails, raises an exception with the error message and status code.
+        Exception: If the download fails after all attempts, raises an exception with the error message and status code.
     """
-    print(f"Soilgrids REST API download from {request["url"]} ... ")   
-    retries = 5  # Maximum number of retries
-    delay = 8  # Initial delay in seconds
+    print(f"Soilgrids REST API download from {request['url']} ... ")   
+    status_codes_rate = {429}  # codes for retry with exponentially increasing delay
+    status_codes_gateway = {502, 503, 504}  # codes for retry with fixed time delay
 
-    while retries > 0:
+    while attempts > 0:
+        attempts -= 1
         time_stamp = datetime.now(timezone.utc).isoformat()
-        response = requests.get(request["url"], params=request["params"])
 
-        if response.status_code == 200:
-            return response.json(), time_stamp
-        elif response.status_code == 429:  # Too Many Requests
-            print(f"Rate limited. Retrying in {delay} seconds ...")
-            time.sleep(delay)
-            delay *= 2  # Exponential backoff
-            retries -= 1
-        else:
-            raise Exception(f"Soilgrids REST API download Error: {response.reason} ({response.status_code}).")
-
-    raise Exception("Maximum number of retries reached. Failed to download data.")
+        try:
+            response = requests.get(request["url"], params=request["params"])
+            
+            if response.status_code == 200:
+                return response.json(), time_stamp
+            elif response.status_code in status_codes_rate:
+                if attempts > 0:
+                    print(f"Request rate limited (Error {response.status_code}). Retrying in {delay_exponential} seconds ...")
+                    time.sleep(delay_exponential)
+                    delay_exponential *= 2     
+                else:
+                    print(f"Request rate limited (Error {response.status_code}).")                
+            elif response.status_code in status_codes_gateway:
+                if attempts > 0:
+                    print(f"Request failed (Error {response.status_code}). Retrying in {delay_linear} seconds ...")
+                    time.sleep(delay_linear)
+                else:
+                    print(f"Request failed (Error {response.status_code}). ")
+            else:
+                raise Exception(f"Soilgrids REST API download error: {response.reason} ({response.status_code}).")
+        except requests.RequestException as e:
+            if attempts > 0:
+                print(f"Request failed {e}.")
+                print(f"Retrying in {delay_linear} seconds ...")
+                time.sleep(delay_linear)
+            else:
+                print(f"Request failed {e}.")
+            
+    # After exhausting all attempts
+    raise Exception("Maximum number of attempts reached. Failed to download data.")
 
 
 def get_soilgrids_data(soilgrids_data, property_names):
@@ -240,7 +262,7 @@ def get_hihydrosoil_specs():
 
 def get_hihydrosoil_map_file(property_name, depth, map_local=False):
     """
-    Generate file path or url for a HiHydroSoil map based on the provided property name and depth.
+    Generate file path or URL for a HiHydroSoil map based on the provided property name and depth.
 
     Parameters:
         property_name (str): Name of the soil property (e.g. "WCpF4.2" or "Ksat").
@@ -259,7 +281,7 @@ def get_hihydrosoil_map_file(property_name, depth, map_local=False):
         if map_file.is_file():
             return map_file 
         else:
-            print(f"Error: Local file '{map_file}' not found! Trying to access via url ...")
+            print(f"Error: Local file '{map_file}' not found! Trying to access via URL ...")
             map_local = False
 
     if not map_local:
@@ -279,10 +301,10 @@ def get_hihydrosoil_data(coordinates, map_local):
 
     Parameters:
         coordinates (tuple): Coordinates ('lat', 'lon') to extract HiHydroSoil data from.
-        map_local (bool): Look for map as local file instead of url.
+        map_local (bool): Look for map as local file instead of URL.
 
     Returns:
-        tuple: Property data for various soil properties and depths (2D numpy.ndarray, nan if no data found), and list of sources used and query time stamps.
+        tuple: Property data for various soil properties and depths (2D numpy.ndarray, nan if no data found), and list of query sources and time stamps.
     """
     print(f"Reading HiHydroSoil data ...")
     hhs_properties = get_hihydrosoil_specs()

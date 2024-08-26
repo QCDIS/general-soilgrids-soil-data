@@ -11,6 +11,7 @@ from pathlib import Path
 import pyproj
 import rasterio
 import requests
+import time
 
 
 def get_package_root():
@@ -84,29 +85,43 @@ def extract_raster_value(tif_file, location):
     return value[0]
 
 
-def check_url(url):
+def check_url(url, attempts=3, delay=2):
     """
     Check if a file exists at the specified URL and retrieve its content type.
 
     Parameters:
         url (str): URL to check.
+        attempts (int): Number of attempts in case of connection errors or specific status codes (default is 3).
+        delay (int): Number of seconds to wait between attempts (default is 2).
 
     Returns:
         str: URL if existing (original or redirected), None otherwise.
     """
-    if url:
+    if not url:
+        return None
+
+    retry_status_codes = {502, 503, 504}
+
+    while attempts > 0:
         try:
-            response = requests.head(url, allow_redirects=True)  # Allow redirection
+            response = requests.head(url, allow_redirects=True)
 
             if response.status_code == 200:
-                return url  # response.url caused problems with HiHydroSoil file opening, but original url works
-                # could be returned: content_type = response.headers.get("content-type")
+                return response.url
+            elif response.status_code in retry_status_codes:
+                attempts -= 1
+
+                if attempts > 0:
+                    time.sleep(delay)  # Wait before retrying
             else:
                 return None
         except requests.ConnectionError:
-            return None
-    else:
-        return None
+            attempts -= 1
+
+            if attempts > 0:
+                time.sleep(delay)  # Wait before retrying
+
+    return None
 
 
 def list_to_file(list_to_write, column_names, file_name):
