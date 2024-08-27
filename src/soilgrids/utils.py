@@ -7,6 +7,7 @@ Description: Utility functions for soilgrids building block.
 
 import csv
 import deims
+import pandas as pd
 from pathlib import Path
 import pyproj
 import rasterio
