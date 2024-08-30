@@ -136,27 +136,26 @@ def download_soilgrids(request, attempts=6, delay_exponential=8, delay_linear=2)
             if response.status_code == 200:
                 return response.json(), time_stamp
             elif response.status_code in status_codes_rate:
+                print(f"Request rate limited (Error {response.status_code}).")
+
                 if attempts > 0:
-                    print(f"Request rate limited (Error {response.status_code}). Retrying in {delay_exponential} seconds ...")
+                    print(f"Retrying in {delay_exponential} seconds ...")
                     time.sleep(delay_exponential)
-                    delay_exponential *= 2     
-                else:
-                    print(f"Request rate limited (Error {response.status_code}).")                
+                    delay_exponential *= 2                                   
             elif response.status_code in status_codes_gateway:
+                print(f"Request failed (Error {response.status_code}).")
+
                 if attempts > 0:
-                    print(f"Request failed (Error {response.status_code}). Retrying in {delay_linear} seconds ...")
-                    time.sleep(delay_linear)
-                else:
-                    print(f"Request failed (Error {response.status_code}). ")
+                    print(f"Retrying in {delay_linear} seconds ...")
+                    time.sleep(delay_linear)                
             else:
                 raise Exception(f"Soilgrids REST API download error: {response.reason} ({response.status_code}).")
         except requests.RequestException as e:
+            print(f"Request failed {e}.")
+
             if attempts > 0:
-                print(f"Request failed {e}.")
                 print(f"Retrying in {delay_linear} seconds ...")
                 time.sleep(delay_linear)
-            else:
-                print(f"Request failed {e}.")
             
     # After exhausting all attempts
     raise Exception("Maximum number of attempts reached. Failed to download data.")
@@ -175,12 +174,13 @@ def get_soilgrids_data(soilgrids_data, property_names):
     """
     print(f"Reading Soilgrids data ...")
 
-    # Initialize property_data array with zeros, and property_units with empty strings
-    property_data = np.zeros(
+    # Initialize property_data array with zeros
+    property_data = np.full(
         (
             len(property_names),
             len(soilgrids_data["properties"]["layers"][0]["depths"]),
         ),
+        np.nan,
         dtype=float,
     )
 
@@ -275,24 +275,23 @@ def get_hihydrosoil_map_file(property_name, depth, map_local=False):
     file_name = property_name + "_" + depth + "_M_250m.tif"
 
     if map_local:
-        # map_file = ut.get_package_root() / "soilMapsHiHydroSoil" / file_name
-        map_file = Path(r"c:/_D/biodt_data/") / "soilMapsHiHydroSoil" / file_name
+        map_file = ut.get_package_root() / "soilMapsHiHydroSoil" / file_name
+        # map_file = Path(r"c:/_D/biodt_data/") / "soilMapsHiHydroSoil" / file_name
         
         if map_file.is_file():
             return map_file 
         else:
-            print(f"Error: Local file '{map_file}' not found! Trying to access via URL ...")
-            map_local = False
+            print(f"Error: Local file '{map_file}' not found!")
+            print("Trying to access via URL ...")
 
-    if not map_local:
-        map_file = "http://134.94.199.14/grasslands-pdt/soilMapsHiHydroSoil/" + file_name        
+    map_file = "http://opendap.biodt.eu/grasslands-pdt/soilMapsHiHydroSoil/" + file_name        
 
-        if ut.check_url(map_file):
-            return map_file
-        else:
-            print(f"Error: File '{map_file}' not found!")
+    if ut.check_url(map_file):
+        return map_file
+    else:
+        print(f"Error: File '{map_file}' not found!")
 
-    return None
+        return None
 
 
 def get_hihydrosoil_data(coordinates, map_local):
@@ -311,11 +310,9 @@ def get_hihydrosoil_data(coordinates, map_local):
     hhs_depths = ["0-5cm", "5-15cm", "15-30cm", "30-60cm", "60-100cm", "100-200cm"]
 
     # Initialize property_data array with zeros
-    property_data = np.zeros(
-        (
-            len(hhs_properties),
-            len(hhs_depths),
-        ),
+    property_data = np.full(
+        (len(hhs_properties), len(hhs_depths)),
+        np.nan,
         dtype=float,
     )
 
@@ -327,19 +324,18 @@ def get_hihydrosoil_data(coordinates, map_local):
             map_file = get_hihydrosoil_map_file(p_specs["hhs_name"], depth, map_local)
 
             if map_file:
-                print(f"Reading from file '{map_file}' ...")
-                
                 # Extract and convert value
-                time_stamp = datetime.now(timezone.utc).isoformat()
-                value = ut.extract_raster_value(map_file, coordinates) 
-                property_data[p_index, d_index] = (
-                    value * p_specs["map_to_float"]
-                ) if not (value==-9999) else None
-                print(
-                    f"Depth {depth}, {p_name}"
-                    f": {property_data[p_index, d_index]:.4f} {p_specs["hhs_unit"]}"
-                )
-                query_protocol.append([map_file, time_stamp])
+                print(f"Reading from file '{map_file}' ...")
+                value, time_stamp = ut.extract_raster_value(map_file, coordinates)
+                query_protocol.append([map_file, time_stamp]) 
+                
+                if value != -9999:
+                    property_data[p_index, d_index] = value * p_specs["map_to_float"] 
+                
+            print(
+                f"Depth {depth}, {p_name}"
+                f": {property_data[p_index, d_index]:.4f} {p_specs["hhs_unit"]}"
+            )
 
     return property_data, query_protocol
 

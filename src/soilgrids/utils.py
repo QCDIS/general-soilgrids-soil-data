@@ -6,6 +6,7 @@ Description: Utility functions for soilgrids building block.
 """
 
 import csv
+from datetime import datetime, timezone
 import deims
 import pandas as pd
 from pathlib import Path
@@ -58,32 +59,47 @@ def reproject_coordinates(lat, lon, target_crs):
     return east, north
 
 
-def extract_raster_value(tif_file, location):
+def extract_raster_value(tif_file, location, attempts=5, delay=2):
     """
-    Extract values from raster file at specified coordinates.
+    Extract value from raster file at specified coordinates.
 
     Parameters:
-        tif_file (str): Path to TIF file.
-        category_mapping (dict): Mapping of category indices to category names.
+        tif_file (str): TIF file path or URL.
         location (dict): Dictionary with 'lat' and 'lon' keys.
+        band_number (int): Band number for which the value shall be extracted (default is 1).
+        attempts (int): Number of attempts to open the TIF file in case of errors (default is 5).
+        delay (int): Number of seconds to wait between attempts (default is 2).
 
     Returns:
-        list: A list of extracted values.
+        tuple: Extracted value (None if extraction failed), and time stamp.
     """
-    with rasterio.open(tif_file) as src:
-        # Get the target CRS (as str in WKT format) from the TIF file
-        target_crs = src.crs.to_wkt()
-        # (HiHydroSoil seems to work with lat/lon too, but better to keep transformation in.)
+    while attempts > 0:
+        time_stamp = datetime.now(timezone.utc).isoformat()
 
-        # Reproject the coordinates to the target CRS
-        east, north = reproject_coordinates(
-            location["lat"], location["lon"], target_crs
-        )
+        try:
+            with rasterio.open(tif_file) as src:
+                # Get the target CRS (as str in WKT format) from the TIF file
+                target_crs = src.crs.to_wkt()
+                # (HiHydroSoil seems to work with lat/lon too, but better to keep transformation in.)
 
-        # Extract the value at the specified coordinates
-        value = next(src.sample([(east, north)]))
+                # Reproject the coordinates to the target CRS
+                east, north = reproject_coordinates(
+                    location["lat"], location["lon"], target_crs
+                )
 
-    return value[0]
+                # Extract the value at the specified coordinates
+                value = next(src.sample([(east, north)]))
+
+            return value[0], time_stamp
+        except rasterio.errors.RasterioError as e:
+            attempts -= 1
+            print(f"Reading TIF file failed (Error {e}).")
+
+            if attempts > 0:
+                print(f" Retrying in {delay} seconds ...")
+                time.sleep(delay)
+            else:
+                return None, time_stamp
 
 
 def check_url(url, attempts=3, delay=2):
@@ -113,14 +129,14 @@ def check_url(url, attempts=3, delay=2):
                 attempts -= 1
 
                 if attempts > 0:
-                    time.sleep(delay)  # Wait before retrying
+                    time.sleep(delay)
             else:
                 return None
         except requests.ConnectionError:
             attempts -= 1
 
             if attempts > 0:
-                time.sleep(delay)  # Wait before retrying
+                time.sleep(delay)
 
     return None
 
