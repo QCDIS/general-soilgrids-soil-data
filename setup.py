@@ -26,5 +26,6 @@ setup(
             "soilgrids_data_processing = soilgrids.data_processing:main"
         ]
     },
+    python_requires=">=3.10",
     install_requires=install_requires,
 )
