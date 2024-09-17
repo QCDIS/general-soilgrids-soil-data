@@ -260,26 +260,25 @@ def get_hihydrosoil_specs():
     return hihydrosoil_specs
 
 
-def get_hihydrosoil_map_file(property_name, depth, map_local=False):
+def get_hihydrosoil_map_file(property_name, depth, *, cache=None):
     """
     Generate file path or URL for a HiHydroSoil map based on the provided property name and depth.
 
     Parameters:
         property_name (str): Name of the soil property (e.g. "WCpF4.2" or "Ksat").
         depth (str): Depth layer (one of "0-5cm", "5-15cm", "15-30cm", "30-60cm", "60-100cm", "100-200cm").
-        map_local (bool): Look for map as local file (default is False).
+        cache (Path): Path for local HiHydroSoil map directory (optional).
 
     Returns:
         pathlib.Path or URL: File path or URL to the HiHydroSoil map.
     """
     file_name = property_name + "_" + depth + "_M_250m.tif"
 
-    if map_local:
-        map_file = ut.get_package_root() / "soilMapsHiHydroSoil" / file_name
-        # map_file = Path(r"c:/_D/biodt_data/") / "soilMapsHiHydroSoil" / file_name
-        
+    if cache is not None:
+        map_file = Path(cache) / file_name
+
         if map_file.is_file():
-            return map_file 
+            return map_file
         else:
             print(f"Error: Local file '{map_file}' not found!")
             print("Trying to access via URL ...")
@@ -294,13 +293,13 @@ def get_hihydrosoil_map_file(property_name, depth, map_local=False):
         return None
 
 
-def get_hihydrosoil_data(coordinates, map_local):
+def get_hihydrosoil_data(coordinates, *, cache=None):
     """
     Read HiHydroSoil data for the given coordinates and return as array.
 
     Parameters:
         coordinates (tuple): Coordinates ('lat', 'lon') to extract HiHydroSoil data from.
-        map_local (bool): Look for map as local file instead of URL.
+        cache (Path): Path for local HiHydroSoil map directory (optional).
 
     Returns:
         tuple: Property data for various soil properties and depths (2D numpy.ndarray, nan if no data found), and list of query sources and time stamps.
@@ -321,7 +320,7 @@ def get_hihydrosoil_data(coordinates, map_local):
 
     for p_index, (p_name, p_specs) in enumerate(hhs_properties.items()):
         for d_index, depth in enumerate(hhs_depths):
-            map_file = get_hihydrosoil_map_file(p_specs["hhs_name"], depth, map_local)
+            map_file = get_hihydrosoil_map_file(p_specs["hhs_name"], depth, cache=cache)
 
             if map_file:
                 # Extract and convert value
