@@ -226,6 +226,6 @@ def get_deims_coordinates(deims_id):
             "name": name,
         }
     except Exception as e:
-        print(f"Error: coordinates for DEIMS.id '{deims_id}' not found ({e})!")
+        print(f"Error: Coordinates for DEIMS.id '{deims_id}' not found ({e})!")
 
         return {"deims_id": deims_id, "found": False}
