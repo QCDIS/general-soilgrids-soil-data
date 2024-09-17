@@ -10,7 +10,13 @@ from soilgrids import utils as ut
 from soilgrids import get_soil_data as gsd
 
 
-def data_processing(coordinates, deims_id, file_name=None, hhs_local=False):
+def data_processing(
+    coordinates,
+    deims_id,
+    file_name=None,
+    *,
+    hhs_cache=None,
+):
     """
     Download data from Soilgrids and HiHydroSoil maps. Convert to .txt files.
 
@@ -18,7 +24,7 @@ def data_processing(coordinates, deims_id, file_name=None, hhs_local=False):
         coordinates (list of dict): List of dictionaries with "lat" and "lon" keys.
         deims_id (str): Identifier of the eLTER site.
         file_name (str or Path): File name to save soil data (default is None, default file name is used if not provided).
-        hhs_local (bool): Look for HiHydroSoil maps as local files (default is False).
+        hhs_cache (Path): Path for local HiHydroSoil map directory (optional).
     """
 
     if coordinates is None:
@@ -42,7 +48,7 @@ def data_processing(coordinates, deims_id, file_name=None, hhs_local=False):
 
     # HiHydroSoil part of the data
     hihydrosoil_data, hihydrosoil_queries = gsd.get_hihydrosoil_data(
-        coordinates, hhs_local
+        coordinates, cache=hhs_cache,
     )
     data_query_protocol.extend(hihydrosoil_queries)
 

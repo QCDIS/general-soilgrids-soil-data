@@ -16,24 +16,6 @@ import requests
 import time
 
 
-def get_package_root():
-    """
-    Get the root directory of the package containing the current module.
-
-    Returns:
-        Path: The path to the package root directory.
-    """
-    # Get the file path of the current module
-    module_path = Path(__file__).resolve()
-
-    # Navigate up from the module directory until the package root is found
-    for parent in module_path.parents:
-        if (parent / "setup.py").is_file():
-            return parent
-
-    raise FileNotFoundError("Could not find package root.")
-
-
 def reproject_coordinates(lat, lon, target_crs):
     """
     Reproject latitude and longitude coordinates to a target CRS.
