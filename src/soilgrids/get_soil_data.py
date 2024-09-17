@@ -35,8 +35,8 @@ def construct_soil_data_file_name(folder, location, file_suffix):
     folder = Path(folder)
     
     if ("lat" in location) and ("lon" in location):  # location as dictionary with lat, lon
-        formatted_lat = f"lat{location["lat"]:.6f}"  
-        formatted_lon = f"lon{location["lon"]:.6f}"  
+        formatted_lat = f"lat{location['lat']:.6f}"
+        formatted_lon = f"lon{location['lon']:.6f}"
         file_start = f"{formatted_lat}_{formatted_lon}"
     elif "deims_id" in location:  # DEIMS.iD
         file_start = location["deims_id"]
@@ -197,7 +197,7 @@ def get_soilgrids_data(soilgrids_data, property_names):
                         depth["values"]["mean"] / prop["unit_measure"]["d_factor"]
                     ) if depth["values"]["mean"] is not None else None
                     print(
-                        f"Depth {depth["label"]}, {p_name}",
+                        f"Depth {depth['label']}, {p_name}",
                         f"mean: {property_data[p_index, d_index]} {p_units}"
                     )
                 break  # Stop searching once the correct property is found
@@ -334,7 +334,7 @@ def get_hihydrosoil_data(coordinates, map_local):
                 
             print(
                 f"Depth {depth}, {p_name}"
-                f": {property_data[p_index, d_index]:.4f} {p_specs["hhs_unit"]}"
+                f": {property_data[p_index, d_index]:.4f} {p_specs['hhs_unit']}"
             )
 
     return property_data, query_protocol
