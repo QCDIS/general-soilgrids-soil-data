@@ -2,7 +2,7 @@
 Module Name: utils.py
 Author: Thomas Banitz, Tuomas Rossi, Franziska Taubert, BioDT
 Date: February, 2024
-Description: Utility functions for soilgrids building block. 
+Description: Utility functions for soilgrids building block.
 """
 
 import csv
@@ -174,40 +174,40 @@ def list_to_file(list_to_write, column_names, file_name):
         df.to_excel(file_path, index=False)
     else:
         print(
-            f"Error: Unsupported file format. Supported formats are '.txt', '.csv' and '.xlsx'."
+            "Error: Unsupported file format. Supported formats are '.txt', '.csv' and '.xlsx'."
         )
 
     print(f"List written to file '{file_name}'.")
 
 
-def get_deims_coordinates(deims_id):
-    """
-    Get coordinates for a DEIMS.iD.
+# def get_deims_coordinates(deims_id):
+#     """
+#     Get coordinates for a DEIMS.iD.
 
-    Parameters:
-        deims_id (str): DEIMS.iD.
+#     Parameters:
+#         deims_id (str): DEIMS.iD.
 
-    Returns:
-        dict: Coordinates as a dictionary with 'lat' and 'lon'.
-    """
-    try:
-        deims_gdf = deims.getSiteCoordinates(deims_id, filename=None)
-        # deims_gdf = deims.getSiteBoundaries(deims_id, filename=None)  # option: collect all coordinates from deims_gdf.boundary[0] ...
+#     Returns:
+#         dict: Coordinates as a dictionary with 'lat' and 'lon'.
+#     """
+#     try:
+#         deims_gdf = deims.getSiteCoordinates(deims_id, filename=None)
+#         # deims_gdf = deims.getSiteBoundaries(deims_id, filename=None)  # option: collect all coordinates from deims_gdf.boundary[0] ...
 
-        lon = deims_gdf.geometry[0].x
-        lat = deims_gdf.geometry[0].y
-        name = deims_gdf.name[0]
-        print(f"Coordinates for DEIMS.id '{deims_id}' found ({name}).")
-        print(f"Latitude: {lat}, Longitude: {lon}")
+#         lon = deims_gdf.geometry[0].x
+#         lat = deims_gdf.geometry[0].y
+#         name = deims_gdf.name[0]
+#         print(f"Coordinates for DEIMS.id '{deims_id}' found ({name}).")
+#         print(f"Latitude: {lat}, Longitude: {lon}")
 
-        return {
-            "lat": lat,
-            "lon": lon,
-            "deims_id": deims_id,
-            "found": True,
-            "name": name,
-        }
-    except Exception as e:
-        print(f"Error: Coordinates for DEIMS.id '{deims_id}' not found ({e})!")
+#         return {
+#             "lat": lat,
+#             "lon": lon,
+#             "deims_id": deims_id,
+#             "found": True,
+#             "name": name,
+#         }
+#     except Exception as e:
+#         print(f"Error: coordinates for DEIMS.id '{deims_id}' not found ({e})!")
 
-        return {"deims_id": deims_id, "found": False}
+#         return {"deims_id": deims_id, "found": False}

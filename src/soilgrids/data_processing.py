@@ -1,39 +1,26 @@
 """
 Module Name: data_processing.py
 Author: Thomas Banitz, Tuomas Rossi, Franziska Taubert, BioDT
-Date: February, 2024
-Description: Building block for obtaining selected soil data at given location from 
+Date: September, 2024
+Description: Building block for obtaining selected soil data at given location from
 SoilGrids and derived data sources (Soilgrids REST API, HiHydroSoil maps).
 """
 
-from soilgrids import utils as ut
 from soilgrids import get_soil_data as gsd
 
 
-def data_processing(
-    coordinates,
-    deims_id,
-    file_name=None,
-    *,
-    hhs_cache=None,
-):
+def data_processing(coordinates, file_name=None, hhs_local=False):
     """
     Download data from Soilgrids and HiHydroSoil maps. Convert to .txt files.
 
     Parameters:
         coordinates (list of dict): List of dictionaries with "lat" and "lon" keys.
-        deims_id (str): Identifier of the eLTER site.
         file_name (str or Path): File name to save soil data (default is None, default file name is used if not provided).
         hhs_cache (Path): Path for local HiHydroSoil map directory (optional).
     """
 
     if coordinates is None:
-        if deims_id:
-            coordinates = ut.get_deims_coordinates(deims_id)
-        else:
-            raise ValueError(
-                "No location defined. Please provide coordinates or DEIMS.iD!"
-            )
+        raise ValueError("No location defined. Please provide coordinates!")
 
     # SoilGrids composition part of the data
     composition_property_names = ["silt", "clay", "sand"]
@@ -48,7 +35,8 @@ def data_processing(
 
     # HiHydroSoil part of the data
     hihydrosoil_data, hihydrosoil_queries = gsd.get_hihydrosoil_data(
-        coordinates, cache=hhs_cache,
+        coordinates,
+        cache=hhs_cache,
     )
     data_query_protocol.extend(hihydrosoil_queries)
 
