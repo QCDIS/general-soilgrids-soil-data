@@ -9,7 +9,7 @@ SoilGrids and derived data sources (Soilgrids REST API, HiHydroSoil maps).
 from soilgrids import get_soil_data as gsd
 
 
-def data_processing(coordinates, file_name=None, hhs_local=False):
+def data_processing(coordinates, file_name=None, *, hhs_cache=None):
     """
     Download data from Soilgrids and HiHydroSoil maps. Convert to .txt files.
 

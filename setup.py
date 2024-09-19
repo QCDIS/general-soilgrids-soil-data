@@ -1,5 +1,4 @@
 from setuptools import setup
-from pathlib import Path
 
 # Project metadata
 name = "soilgrids"
