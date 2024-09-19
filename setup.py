@@ -21,11 +21,6 @@ setup(
     description=description,
     url=url,
     license=license,
-    entry_points={
-        "console_scripts": [
-            "soilgrids_data_processing = soilgrids.data_processing:main"
-        ]
-    },
     python_requires=">=3.10",
     install_requires=install_requires,
 )
