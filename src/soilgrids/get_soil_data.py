@@ -239,9 +239,9 @@ def get_hihydrosoil_specs():
         hhs_name: HiHydroSoil variable name.
         hhs_unit: HiHydroSoil unit.
         map_to_float: Conversion factor from HiHydroSoil integer map value to actual float number.
-        hhs_to_gmd: Conversion factor from HiHydroSoil unit to Grassmind unit.
-        gmd_unit: Grassmind unit.
-        gmd_name: Grassmind variable name, as used in final soil data file.
+        hhs_to_gmd: Conversion factor from HiHydroSoil unit to grassland model unit.
+        gmd_unit: Grassland model unit.
+        gmd_name: Grassland model variable name, as used in final soil data file.
 
     Returns:
         dict: Dictionary of variable specifications, where each key is a variable name,
@@ -365,11 +365,11 @@ def get_hihydrosoil_data(coordinates, *, cache=None):
     return property_data, query_protocol
 
 
-def map_depths_soilgrids_grassmind(
+def map_depths_soilgrids_grassland_model(
     property_data, property_names, conversion_factor=1, conversion_units=None
 ):
     """
-    Map data from Soilgrids depths to Grassmind depths.
+    Map data from Soilgrids depths to grassland model depths.
 
     Parameters:
         property_data (numpy.ndarray): Array containing property data.
@@ -380,7 +380,7 @@ def map_depths_soilgrids_grassmind(
     Returns:
         numpy.ndarray: Array containing mapped property values.
     """
-    print("Mapping data from Soilgrids depths to Grassmind depths ...")
+    print("Mapping data from Soilgrids depths to grassland model depths ...")
 
     # Define number of new depths, 0-200cm in 10cm steps
     new_depths_number = 20
@@ -471,7 +471,7 @@ def soil_data_to_txt_file(
     # nitrogen_data,
 ):
     """
-    Write SoilGrids and HiHydroSoil data to soil data TXT file in Grassmind format.
+    Write SoilGrids and HiHydroSoil data to soil data TXT file in grassland model format.
 
     Parameters:
         coordinates (tuple): Coordinates ('lat' and 'lon') for the data.
@@ -484,9 +484,9 @@ def soil_data_to_txt_file(
     Returns:
         None
     """
-    # Prepare SoilGrids composition data in Grassmind format
+    # Prepare SoilGrids composition data in grassland model format
     composition_to_gmd = 1e-2  # % to proportions for all composition values
-    composition_data_gmd = map_depths_soilgrids_grassmind(
+    composition_data_gmd = map_depths_soilgrids_grassland_model(
         composition_data, composition_property_names, composition_to_gmd
     )
 
@@ -495,16 +495,16 @@ def soil_data_to_txt_file(
         composition_data_gmd, composition_property_names
     )
 
-    # Prepare HiHydroSoil data in Grassmind format
+    # Prepare HiHydroSoil data in grassland model format
     hhs_properties = get_hihydrosoil_specs()
     hhs_property_names = list(hhs_properties.keys())
     hhs_conversion_factor = [specs["hhs_to_gmd"] for specs in hhs_properties.values()]
     hhs_units_gmd = [specs["gmd_unit"] for specs in hhs_properties.values()]
-    hhs_data_gmd = map_depths_soilgrids_grassmind(
+    hhs_data_gmd = map_depths_soilgrids_grassland_model(
         hihydrosoil_data, hhs_property_names, hhs_conversion_factor, hhs_units_gmd
     )
 
-    # # Prepare SoilGrids nitrogen data in Grassmind format
+    # # Prepare SoilGrids nitrogen data in grassland model format
     # # Not only mineral nitrogen!!
     # # Sum of total nitrogen (ammonia, organic and reduced nitrogen)
     # # as measured by Kjeldahl digestion plus nitrate–nitrite
@@ -513,7 +513,7 @@ def soil_data_to_txt_file(
     # # small fraction of total N? general relation?
     # nitrogen_per_volume = nitrogen_data[0, :] * nitrogen_data[1, :]  # unit: g/dm³ (from: g/kg * kg/dm³)
     # nitrogen_to_gmd = 1e2 # 10cm depth layers mean 100 dm³ per m²
-    # nitrogen_data_gmd = map_depths_soilgrids_grassmind(
+    # nitrogen_data_gmd = map_depths_soilgrids_grassland_model(
     #     nitrogen_per_volume, ["total nitrogen"], nitrogen_to_gmd, ["g/m²"]
     # )
     # print("Warning: Total nitrogen data not used! Using default mineral nitrogen value for all depths: 1 g/m².")
