@@ -3,7 +3,7 @@ from setuptools import setup
 # Project metadata
 name = "soilgrids"
 version = "0.1.0"
-author = "Thomas Banitz, Franziska Taubert, Tuomas Rossi, BioDT"
+author = "Thomas Banitz, Franziska Taubert, Tuomas Rossi, Taimur Haider Khan, BioDT"
 description = "Retrieve soil data from Soilgrids and HiHydroSoil, and prepare as grassland model input files"
 url = "https://github.com/BioDT/general-soilgrids-soil-data"
 license = "EUPL v1.2"
