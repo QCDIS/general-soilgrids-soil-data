@@ -39,14 +39,17 @@ import requests
 from soilgrids import utils as ut
 
 
-def construct_soil_data_file_name(folder, coordinates, file_suffix):
+def construct_soil_data_file_name(
+    folder, coordinates, *, file_suffix=".txt", data_complete=True
+):
     """
     Construct data file name.
 
     Parameters:
         folder (str or Path): Folder where the data file will be stored.
-        coordinates (dict): Dictionary with "lat" and "lon" keys ({'lat': float, 'lon': float}).
-        file_suffix (str): File suffix (e.g. '.txt').
+        coordinates (dict): Dictionary with 'lat' and 'lon' keys ({'lat': float, 'lon': float}).
+        file_suffix (str): File suffix (default is '.txt').
+        data_complete (bool): Flag for data completeness (default is True).
 
     Returns:
         Path: Constructed data file name as a Path object.
@@ -58,12 +61,13 @@ def construct_soil_data_file_name(folder, coordinates, file_suffix):
         formatted_lat = f"lat{coordinates['lat']:.6f}"
         formatted_lon = f"lon{coordinates['lon']:.6f}"
         file_start = f"{formatted_lat}_{formatted_lon}"
+        file_complete = "" if data_complete else "__incomplete"
     else:
         raise ValueError(
             "Coordinates not correctly defined. Please provide as dictionary ({'lat': float, 'lon': float})!"
         )
 
-    file_name = folder / f"{file_start}__2020__soil{file_suffix}"
+    file_name = folder / f"{file_start}__2020__soil{file_complete}{file_suffix}"
 
     return file_name
 
@@ -94,7 +98,7 @@ def configure_soilgrids_request(coordinates, property_names):
     Configure a request for SoilGrids API based on given coordinates and properties.
 
     Parameters:
-        coordinates (dict): Dictionary with "lat" and "lon" keys ({'lat': float, 'lon': float}).
+        coordinates (dict): Dictionary with 'lat' and 'lon' keys ({'lat': float, 'lon': float}).
         property_names (list): List of properties to download.
 
     Returns:
@@ -190,7 +194,9 @@ def get_soilgrids_data(soilgrids_data, property_names):
         property_names (list): List of properties to extract data and units for.
 
     Returns:
-        numpy.ndarray: 2D array containing property data for various soil properties and depths (nan if no data found).
+        tuple:
+            - Property data for various soil properties and depths (2D numpy.ndarray, nan if no data found),
+            - Flag for data completeness (bool, False if not all data found).
     """
     print("Reading Soilgrids data ...")
 
@@ -203,6 +209,7 @@ def get_soilgrids_data(soilgrids_data, property_names):
         np.nan,
         dtype=float,
     )
+    property_data_complete = True
 
     # Iterate through property_names
     for p_index, p_name in enumerate(property_names):
@@ -213,18 +220,19 @@ def get_soilgrids_data(soilgrids_data, property_names):
 
                 # Iterate through depths and fill the property_data array
                 for d_index, depth in enumerate(prop["depths"]):
-                    property_data[p_index, d_index] = (
-                        (depth["values"]["mean"] / prop["unit_measure"]["d_factor"])
-                        if depth["values"]["mean"] is not None
-                        else None
-                    )
+                    if depth["values"]["mean"] is not None:
+                        property_data[p_index, d_index] = (
+                            depth["values"]["mean"] / prop["unit_measure"]["d_factor"]
+                        )
+                    else:
+                        property_data_complete = False
                     print(
                         f"Depth {depth['label']}, {p_name}",
                         f"mean: {property_data[p_index, d_index]} {p_units}",
                     )
                 break  # Stop searching once the correct property is found
 
-    return property_data
+    return property_data, property_data_complete
 
 
 def get_hihydrosoil_specs():
@@ -242,7 +250,6 @@ def get_hihydrosoil_specs():
     Returns:
         dict: Dictionary of variable specifications, where each key is a variable name,
               and each value is a dictionary of specifications.
-
     """
     hihydrosoil_specs = {
         "field capacity": {
@@ -287,8 +294,8 @@ def get_hihydrosoil_map_file(property_name, depth, *, cache=None):
     Generate file path or URL for a HiHydroSoil map based on the provided property name and depth.
 
     Parameters:
-        property_name (str): Name of the soil property (e.g. "WCpF4.2" or "Ksat").
-        depth (str): Depth layer (one of "0-5cm", "5-15cm", "15-30cm", "30-60cm", "60-100cm", "100-200cm").
+        property_name (str): Name of the soil property (e.g. 'WCpF4.2' or 'Ksat').
+        depth (str): Depth layer (one of '0-5cm', '5-15cm', '15-30cm', '30-60cm', '60-100cm', '100-200cm').
         cache (Path): Path for local HiHydroSoil map directory (optional).
 
     Returns:
@@ -320,11 +327,14 @@ def get_hihydrosoil_data(coordinates, *, cache=None):
     Read HiHydroSoil data for the given coordinates and return as array.
 
     Parameters:
-        coordinates (dict): Dictionary with "lat" and "lon" keys ({'lat': float, 'lon': float}).
+        coordinates (dict): Dictionary with 'lat' and 'lon' keys ({'lat': float, 'lon': float}).
         cache (Path): Path for local HiHydroSoil map directory (optional).
 
     Returns:
-        tuple: Property data for various soil properties and depths (2D numpy.ndarray, nan if no data found), and list of query sources and time stamps.
+        tuple:
+        - Property data for various soil properties and depths (2D numpy.ndarray, nan if no data found),
+        - Flag for data completeness (bool, False if not all data found),
+        - List of query sources and time stamps.
     """
     print("Reading HiHydroSoil data ...")
     hhs_properties = get_hihydrosoil_specs()
@@ -336,6 +346,7 @@ def get_hihydrosoil_data(coordinates, *, cache=None):
         np.nan,
         dtype=float,
     )
+    property_data_complete = True
 
     # Extract values from tif maps for each property and depth
     query_protocol = []
@@ -352,13 +363,17 @@ def get_hihydrosoil_data(coordinates, *, cache=None):
 
                 if value != -9999:
                     property_data[p_index, d_index] = value * p_specs["map_to_float"]
+                else:
+                    property_data_complete = False
+            else:
+                property_data_complete = False
 
             print(
                 f"Depth {depth}, {p_name}"
                 f": {property_data[p_index, d_index]:.4f} {p_specs['hhs_unit']}"
             )
 
-    return property_data, query_protocol
+    return property_data, property_data_complete, query_protocol
 
 
 def map_depths_soilgrids_grassland_model(
@@ -464,18 +479,21 @@ def soil_data_to_txt_file(
     hihydrosoil_data,
     data_query_protocol,
     file_name=None,
+    *,
+    data_complete=True,
     # nitrogen_data,
 ):
     """
     Write SoilGrids and HiHydroSoil data to soil data TXT file in grassland model format.
 
     Parameters:
-        coordinates (dict): Dictionary with "lat" and "lon" keys ({'lat': float, 'lon': float}).
+        coordinates (dict): Dictionary with 'lat' and 'lon' keys ({'lat': float, 'lon': float}).
         composition_data (numpy.ndarray): SoilGrids data array.
         composition_property_names (list): Names of SoilGrids properties.
         hihydrosoil_data (numpy.ndarray): HiHydroSoil data array.
         data_query_protocol (list): List of sources and time stamps from retrieving soil data.
         file_name (str or Path): File name to save soil data (default is None, default file name is used if not provided).
+        data_complete (bool): Flag for data completeness (default is True).
 
     Returns:
         None
@@ -517,7 +535,9 @@ def soil_data_to_txt_file(
     # Write collected soil data to TXT file
     if not file_name:
         file_name = construct_soil_data_file_name(
-            "soilDataPrepared", coordinates, ".txt"
+            "soilDataPrepared",
+            coordinates,
+            data_complete=data_complete,
         )
 
     # Create data directory if missing

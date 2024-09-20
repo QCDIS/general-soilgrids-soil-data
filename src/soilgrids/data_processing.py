@@ -40,15 +40,18 @@ def data_processing(coordinates, *, file_name=None, hhs_cache=None):
     )
     composition_raw, time_stamp = gsd.download_soilgrids(composition_request)
     data_query_protocol = [[composition_request["url"], time_stamp]]
-    composition_data = gsd.get_soilgrids_data(
+    composition_data, composition_data_complete = gsd.get_soilgrids_data(
         composition_raw, composition_property_names
     )
 
     # HiHydroSoil part of the data
-    hihydrosoil_data, hihydrosoil_queries = gsd.get_hihydrosoil_data(
-        coordinates,
-        cache=hhs_cache,
+    hihydrosoil_data, hihydrosoil_data_complete, hihydrosoil_queries = (
+        gsd.get_hihydrosoil_data(
+            coordinates,
+            cache=hhs_cache,
+        )
     )
+    data_complete = composition_data_complete and hihydrosoil_data_complete
     data_query_protocol.extend(hihydrosoil_queries)
 
     # # SoilGrids nitrogen part of the data
@@ -68,5 +71,6 @@ def data_processing(coordinates, *, file_name=None, hhs_cache=None):
         hihydrosoil_data,
         data_query_protocol,
         file_name,
+        data_complete=data_complete,
         # nitrogen_data,
     )
