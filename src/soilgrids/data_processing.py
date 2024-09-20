@@ -18,18 +18,20 @@ https://joinup.ec.europa.eu/software/page/eupl
 from soilgrids import get_soil_data as gsd
 
 
-def data_processing(coordinates, file_name=None, *, hhs_cache=None):
+def data_processing(coordinates, *, file_name=None, hhs_cache=None):
     """
     Download data from Soilgrids and HiHydroSoil maps. Convert to .txt files.
 
     Parameters:
-        coordinates (list of dict): List of dictionaries with "lat" and "lon" keys.
+        coordinates (dict): Dictionary with "lat" and "lon" keys ({'lat': float, 'lon': float}).
         file_name (str or Path): File name to save soil data (default is None, default file name is used if not provided).
         hhs_cache (Path): Path for local HiHydroSoil map directory (optional).
     """
 
-    if coordinates is None:
-        raise ValueError("No location defined. Please provide coordinates!")
+    if "lat" not in coordinates or "lon" not in coordinates:
+        raise ValueError(
+            "Coordinates not correctly defined. Please provide as dictionary ({'lat': float, 'lon': float})!"
+        )
 
     # SoilGrids composition part of the data
     composition_property_names = ["silt", "clay", "sand"]

@@ -50,13 +50,13 @@ def reproject_coordinates(lat, lon, target_crs):
     return east, north
 
 
-def extract_raster_value(tif_file, location, attempts=5, delay=2):
+def extract_raster_value(tif_file, coordinates, attempts=5, delay=2):
     """
     Extract value from raster file at specified coordinates.
 
     Parameters:
         tif_file (str): TIF file path or URL.
-        location (dict): Dictionary with 'lat' and 'lon' keys.
+        coordinates (dict): Dictionary with "lat" and "lon" keys ({'lat': float, 'lon': float}).
         band_number (int): Band number for which the value shall be extracted (default is 1).
         attempts (int): Number of attempts to open the TIF file in case of errors (default is 5).
         delay (int): Number of seconds to wait between attempts (default is 2).
@@ -75,7 +75,7 @@ def extract_raster_value(tif_file, location, attempts=5, delay=2):
 
                 # Reproject the coordinates to the target CRS
                 east, north = reproject_coordinates(
-                    location["lat"], location["lon"], target_crs
+                    coordinates["lat"], coordinates["lon"], target_crs
                 )
 
                 # Extract the value at the specified coordinates

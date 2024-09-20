@@ -39,13 +39,13 @@ import requests
 from soilgrids import utils as ut
 
 
-def construct_soil_data_file_name(folder, location, file_suffix):
+def construct_soil_data_file_name(folder, coordinates, file_suffix):
     """
     Construct data file name.
 
     Parameters:
         folder (str or Path): Folder where the data file will be stored.
-        location (str or dict): Location information ('DEIMS.iD' or {'lat': float, 'lon': float}).
+        coordinates (dict): Dictionary with "lat" and "lon" keys ({'lat': float, 'lon': float}).
         file_suffix (str): File suffix (e.g. '.txt').
 
     Returns:
@@ -54,18 +54,14 @@ def construct_soil_data_file_name(folder, location, file_suffix):
     # Get folder with path appropriate for different operating systems
     folder = Path(folder)
 
-    if ("lat" in location) and (
-        "lon" in location
-    ):  # location as dictionary with lat, lon
-        formatted_lat = f'lat{location["lat"]:.6f}'
-        formatted_lon = f"lon{location['lon']:.6f}"
+    if "lat" in coordinates and "lon" in coordinates:
+        formatted_lat = f"lat{coordinates['lat']:.6f}"
+        formatted_lon = f"lon{coordinates['lon']:.6f}"
         file_start = f"{formatted_lat}_{formatted_lon}"
-    elif "deims_id" in location:  # DEIMS.iD
-        file_start = location["deims_id"]
-    elif isinstance(location, str):  # location as string (DEIMS.iD)
-        file_start = location
     else:
-        raise ValueError("Unsupported location format.")
+        raise ValueError(
+            "Coordinates not correctly defined. Please provide as dictionary ({'lat': float, 'lon': float})!"
+        )
 
     file_name = folder / f"{file_start}__2020__soil{file_suffix}"
 
@@ -98,7 +94,7 @@ def configure_soilgrids_request(coordinates, property_names):
     Configure a request for SoilGrids API based on given coordinates and properties.
 
     Parameters:
-        coordinates (dict): Dictionary containing 'lon' and 'lat' keys.
+        coordinates (dict): Dictionary with "lat" and "lon" keys ({'lat': float, 'lon': float}).
         property_names (list): List of properties to download.
 
     Returns:
@@ -324,7 +320,7 @@ def get_hihydrosoil_data(coordinates, *, cache=None):
     Read HiHydroSoil data for the given coordinates and return as array.
 
     Parameters:
-        coordinates (tuple): Coordinates ('lat', 'lon') to extract HiHydroSoil data from.
+        coordinates (dict): Dictionary with "lat" and "lon" keys ({'lat': float, 'lon': float}).
         cache (Path): Path for local HiHydroSoil map directory (optional).
 
     Returns:
@@ -474,7 +470,7 @@ def soil_data_to_txt_file(
     Write SoilGrids and HiHydroSoil data to soil data TXT file in grassland model format.
 
     Parameters:
-        coordinates (tuple): Coordinates ('lat' and 'lon') for the data.
+        coordinates (dict): Dictionary with "lat" and "lon" keys ({'lat': float, 'lon': float}).
         composition_data (numpy.ndarray): SoilGrids data array.
         composition_property_names (list): Names of SoilGrids properties.
         hihydrosoil_data (numpy.ndarray): HiHydroSoil data array.
