@@ -1,18 +1,28 @@
 """
 Module Name: utils.py
-Author: Thomas Banitz, Tuomas Rossi, Franziska Taubert, BioDT
-Date: February, 2024
 Description: Utility functions for soilgrids building block.
+
+Copyright (C) 2024
+- Thomas Banitz, Franziska Taubert, Helmholtz Centre for Environmental Research GmbH - UFZ, Leipzig, Germany
+- Tuomas Rossi, CSC – IT Center for Science Ltd., Espoo, Finland
+
+Licensed under the EUPL, Version 1.2 or - as soon they will be approved
+by the European Commission - subsequent versions of the EUPL (the "Licence").
+You may not use this work except in compliance with the Licence.
+
+You may obtain a copy of the Licence at:
+https://joinup.ec.europa.eu/software/page/eupl
 """
 
 import csv
+import time
 from datetime import datetime, timezone
-import pandas as pd
 from pathlib import Path
+
+import pandas as pd
 import pyproj
 import rasterio
 import requests
-import time
 
 
 def reproject_coordinates(lat, lon, target_crs):

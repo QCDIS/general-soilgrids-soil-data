@@ -1,9 +1,18 @@
 """
 Module Name: data_processing.py
-Author: Thomas Banitz, Tuomas Rossi, Franziska Taubert, BioDT
-Date: September, 2024
 Description: Building block for obtaining selected soil data at given location from
-SoilGrids and derived data sources (Soilgrids REST API, HiHydroSoil maps).
+             SoilGrids and derived data sources (Soilgrids REST API, HiHydroSoil maps).
+
+Copyright (C) 2024
+- Thomas Banitz, Franziska Taubert, Helmholtz Centre for Environmental Research GmbH - UFZ, Leipzig, Germany
+- Tuomas Rossi, CSC – IT Center for Science Ltd., Espoo, Finland
+
+Licensed under the EUPL, Version 1.2 or - as soon they will be approved
+by the European Commission - subsequent versions of the EUPL (the "Licence").
+You may not use this work except in compliance with the Licence.
+
+You may obtain a copy of the Licence at:
+https://joinup.ec.europa.eu/software/page/eupl
 """
 
 from soilgrids import get_soil_data as gsd

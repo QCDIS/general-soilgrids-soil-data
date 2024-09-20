@@ -1,22 +1,42 @@
 """
 Module Name: get_soil_data.py
-Author: Thomas Banitz, Tuomas Rossi, Franziska Taubert, BioDT
-Date: Februray, 2024
-Description: Functions for downloading and processing selected soil data, from sources:
+Description: Functions for downloading and processing selected soil data
 
-             SoilGrids (https://soilgrids.org/)
-             access via API (https://rest.isric.org/soilgrids/v2.0/docs)
+Data sources:
+    SoilGrids (https://soilgrids.org/)
+    - Poggio L., Sousa L.M., Batjes N.H., Heuvelink G.B., Kempen B., Ribeiro E., Rossiter D. (2021):
+      SoilGrids 2.0: producing soil information for the globe with quantified spatial uncertainty.
+      SOIL 7: 217‑240. https://doi.org/10.5194/soil-7-217-2021
+    - access via API (https://rest.isric.org/soilgrids/v2.0/docs)
 
-             HiHydroSoil v2.0 (https://www.futurewater.eu/projects/hihydrosoil/)
-             access via TIF Maps, provided upon request to FutureWater
+    HiHydroSoil v2.0 (https://www.futurewater.eu/projects/hihydrosoil/)
+    - Simons, G.W.H., R. Koster, P. Droogers. (2020):
+      HiHydroSoil v2.0 - A high resolution soil map of global hydraulic properties.
+      FutureWater Report 213.
+    - access via TIF Maps, provided upon request to FutureWater
+    - redistributed with permission and without changes at:
+      http://opendap.biodt.eu/grasslands-pdt/soilMapsHiHydroSoil/
+
+Copyright (C) 2024
+- Thomas Banitz, Franziska Taubert, Helmholtz Centre for Environmental Research GmbH - UFZ, Leipzig, Germany
+- Tuomas Rossi, CSC – IT Center for Science Ltd., Espoo, Finland
+
+Licensed under the EUPL, Version 1.2 or - as soon they will be approved
+by the European Commission - subsequent versions of the EUPL (the "Licence").
+You may not use this work except in compliance with the Licence.
+
+You may obtain a copy of the Licence at:
+https://joinup.ec.europa.eu/software/page/eupl
 """
 
+import time
 from datetime import datetime, timezone
+from pathlib import Path
+
 import numpy as np
 import requests
-from pathlib import Path
+
 from soilgrids import utils as ut
-import time
 
 
 def construct_soil_data_file_name(folder, location, file_suffix):
@@ -490,7 +510,7 @@ def soil_data_to_txt_file(
     # # as measured by Kjeldahl digestion plus nitrate–nitrite
 
     # # difficult to assess mineral N
-    # # small fraction fo total N? general relation?
+    # # small fraction of total N? general relation?
     # nitrogen_per_volume = nitrogen_data[0, :] * nitrogen_data[1, :]  # unit: g/dm³ (from: g/kg * kg/dm³)
     # nitrogen_to_gmd = 1e2 # 10cm depth layers mean 100 dm³ per m²
     # nitrogen_data_gmd = map_depths_soilgrids_grassmind(
