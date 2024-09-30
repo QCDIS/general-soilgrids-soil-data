@@ -20,6 +20,6 @@ Usage:
    to download data for a given location and produce .txt files in grassland model input data format.
 
    Parameters:
-   - coordinates (dict): Dictionary with "lat" and "lon" keys ({'lat': float, 'lon': float}).
+   - coordinates (dict): Dictionary with 'lat' and 'lon' keys ({'lat': float, 'lon': float}).
    - file_name (str or Path): File name to save soil data (optional, default file name is used if not provided).
    - hhs_cache (Path): Path for local HiHydroSoil map directory (optional).

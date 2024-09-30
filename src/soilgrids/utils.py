@@ -12,6 +12,12 @@ You may not use this work except in compliance with the Licence.
 
 You may obtain a copy of the Licence at:
 https://joinup.ec.europa.eu/software/page/eupl
+
+This project has received funding from the European Union's Horizon Europe Research and Innovation
+Programme under grant agreement No 101057437 (BioDT project, https://doi.org/10.3030/101057437).
+The authors acknowledge the EuroHPC Joint Undertaking and CSC – IT Center for Science Ltd., Finland
+for awarding this project access to the EuroHPC supercomputer LUMI, hosted by CSC – IT Center for
+Science Ltd., Finlande and the LUMI consortium through a EuroHPC Development Access call.
 """
 
 import csv
@@ -56,7 +62,7 @@ def extract_raster_value(tif_file, coordinates, attempts=5, delay=2):
 
     Parameters:
         tif_file (str): TIF file path or URL.
-        coordinates (dict): Dictionary with "lat" and "lon" keys ({'lat': float, 'lon': float}).
+        coordinates (dict): Dictionary with 'lat' and 'lon' keys ({'lat': float, 'lon': float}).
         band_number (int): Band number for which the value shall be extracted (default is 1).
         attempts (int): Number of attempts to open the TIF file in case of errors (default is 5).
         delay (int): Number of seconds to wait between attempts (default is 2).
