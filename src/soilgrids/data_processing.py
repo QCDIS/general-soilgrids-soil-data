@@ -18,7 +18,7 @@ This project has received funding from the European Union's Horizon Europe Resea
 Programme under grant agreement No 101057437 (BioDT project, https://doi.org/10.3030/101057437).
 The authors acknowledge the EuroHPC Joint Undertaking and CSC – IT Center for Science Ltd., Finland
 for awarding this project access to the EuroHPC supercomputer LUMI, hosted by CSC – IT Center for
-Science Ltd., Finlande and the LUMI consortium through a EuroHPC Development Access call.
+Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Access call.
 """
 
 from soilgrids import get_soil_data as gsd
@@ -33,6 +33,7 @@ def data_processing(coordinates, *, file_name=None, hhs_cache=None):
         file_name (str or Path): File name to save soil data (default is None, default file name is used if not provided).
         hhs_cache (Path): Path for local HiHydroSoil map directory (optional).
     """
+    # SoilGrids nitrogen part of the data in commits before 2024-09-30
 
     if "lat" in coordinates and "lon" in coordinates:
         print(
@@ -50,29 +51,16 @@ def data_processing(coordinates, *, file_name=None, hhs_cache=None):
     )
     composition_raw, time_stamp = gsd.download_soilgrids(composition_request)
     data_query_protocol = [[composition_request["url"], time_stamp]]
-    composition_data, composition_data_complete = gsd.get_soilgrids_data(
+    composition_data = gsd.get_soilgrids_data(
         composition_raw, composition_property_names
     )
 
     # HiHydroSoil part of the data
-    hihydrosoil_data, hihydrosoil_data_complete, hihydrosoil_queries = (
-        gsd.get_hihydrosoil_data(
-            coordinates,
-            cache=hhs_cache,
-        )
+    hihydrosoil_data, hihydrosoil_queries = gsd.get_hihydrosoil_data(
+        coordinates,
+        cache=hhs_cache,
     )
-    data_complete = composition_data_complete and hihydrosoil_data_complete
     data_query_protocol.extend(hihydrosoil_queries)
-
-    # # SoilGrids nitrogen part of the data
-    # nitrogen_property_names = ["nitrogen", "bdod"]
-    # nitrogen_request = gsd.configure_soilgrids_request(
-    #     coordinates, nitrogen_property_names
-    # )
-    # nitrogen_raw = gsd.download_soilgrids(nitrogen_request)
-    # nitrogen_data = gsd.get_soilgrids_data(
-    #     nitrogen_raw, nitrogen_property_names, value_type="mean"
-    # )
 
     gsd.soil_data_to_txt_file(
         coordinates,
@@ -81,6 +69,4 @@ def data_processing(coordinates, *, file_name=None, hhs_cache=None):
         hihydrosoil_data,
         data_query_protocol,
         file_name,
-        data_complete=data_complete,
-        # nitrogen_data,
     )

@@ -17,7 +17,7 @@ This project has received funding from the European Union's Horizon Europe Resea
 Programme under grant agreement No 101057437 (BioDT project, https://doi.org/10.3030/101057437).
 The authors acknowledge the EuroHPC Joint Undertaking and CSC – IT Center for Science Ltd., Finland
 for awarding this project access to the EuroHPC supercomputer LUMI, hosted by CSC – IT Center for
-Science Ltd., Finlande and the LUMI consortium through a EuroHPC Development Access call.
+Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Access call.
 
 Data sources:
     SoilGrids (https://soilgrids.org/)
@@ -45,9 +45,7 @@ import requests
 from soilgrids import utils as ut
 
 
-def construct_soil_data_file_name(
-    folder, coordinates, *, file_suffix=".txt", data_complete=True
-):
+def construct_soil_data_file_name(folder, coordinates, *, file_suffix=".txt"):
     """
     Construct data file name.
 
@@ -55,7 +53,6 @@ def construct_soil_data_file_name(
         folder (str or Path): Folder where the data file will be stored.
         coordinates (dict): Dictionary with 'lat' and 'lon' keys ({'lat': float, 'lon': float}).
         file_suffix (str): File suffix (default is '.txt').
-        data_complete (bool): Flag for data completeness (default is True).
 
     Returns:
         Path: Constructed data file name as a Path object.
@@ -67,13 +64,12 @@ def construct_soil_data_file_name(
         formatted_lat = f"lat{coordinates['lat']:.6f}"
         formatted_lon = f"lon{coordinates['lon']:.6f}"
         file_start = f"{formatted_lat}_{formatted_lon}"
-        file_complete = "" if data_complete else "__incomplete"
     else:
         raise ValueError(
             "Coordinates not correctly defined. Please provide as dictionary ({'lat': float, 'lon': float})!"
         )
 
-    file_name = folder / f"{file_start}__2020__soil{file_complete}{file_suffix}"
+    file_name = folder / f"{file_start}__2020__soil{file_suffix}"
 
     return file_name
 
@@ -200,9 +196,7 @@ def get_soilgrids_data(soilgrids_data, property_names):
         property_names (list): List of properties to extract data and units for.
 
     Returns:
-        tuple:
-            - Property data for various soil properties and depths (2D numpy.ndarray, nan if no data found),
-            - Flag for data completeness (bool, False if not all data found).
+        2D numpy.ndarray: Property data for various soil properties and depths (nan if no data found).
     """
     print("Reading Soilgrids data ...")
 
@@ -215,7 +209,6 @@ def get_soilgrids_data(soilgrids_data, property_names):
         np.nan,
         dtype=float,
     )
-    property_data_complete = True
 
     # Iterate through property_names
     for p_index, p_name in enumerate(property_names):
@@ -226,19 +219,18 @@ def get_soilgrids_data(soilgrids_data, property_names):
 
                 # Iterate through depths and fill the property_data array
                 for d_index, depth in enumerate(prop["depths"]):
-                    if depth["values"]["mean"] is not None:
+                    if depth["values"]["mean"]:
                         property_data[p_index, d_index] = (
                             depth["values"]["mean"] / prop["unit_measure"]["d_factor"]
                         )
-                    else:
-                        property_data_complete = False
+
                     print(
                         f"Depth {depth['label']}, {p_name}",
                         f"mean: {property_data[p_index, d_index]} {p_units}",
                     )
                 break  # Stop searching once the correct property is found
 
-    return property_data, property_data_complete
+    return property_data
 
 
 def get_hihydrosoil_specs():
@@ -339,7 +331,6 @@ def get_hihydrosoil_data(coordinates, *, cache=None):
     Returns:
         tuple:
         - Property data for various soil properties and depths (2D numpy.ndarray, nan if no data found),
-        - Flag for data completeness (bool, False if not all data found),
         - List of query sources and time stamps.
     """
     print("Reading HiHydroSoil data ...")
@@ -352,7 +343,6 @@ def get_hihydrosoil_data(coordinates, *, cache=None):
         np.nan,
         dtype=float,
     )
-    property_data_complete = True
 
     # Extract values from tif maps for each property and depth
     query_protocol = []
@@ -369,17 +359,13 @@ def get_hihydrosoil_data(coordinates, *, cache=None):
 
                 if value != -9999:
                     property_data[p_index, d_index] = value * p_specs["map_to_float"]
-                else:
-                    property_data_complete = False
-            else:
-                property_data_complete = False
 
             print(
                 f"Depth {depth}, {p_name}"
                 f": {property_data[p_index, d_index]:.4f} {p_specs['hhs_unit']}"
             )
 
-    return property_data, property_data_complete, query_protocol
+    return property_data, query_protocol
 
 
 def map_depths_soilgrids_grassland_model(
@@ -485,8 +471,6 @@ def soil_data_to_txt_file(
     hihydrosoil_data,
     data_query_protocol,
     file_name=None,
-    *,
-    data_complete=True,
     # nitrogen_data,
 ):
     """
@@ -499,11 +483,13 @@ def soil_data_to_txt_file(
         hihydrosoil_data (numpy.ndarray): HiHydroSoil data array.
         data_query_protocol (list): List of sources and time stamps from retrieving soil data.
         file_name (str or Path): File name to save soil data (default is None, default file name is used if not provided).
-        data_complete (bool): Flag for data completeness (default is True).
 
     Returns:
         None
     """
+    # SoilGrids nitrogen part of the data in commits before 2024-09-30
+    # Soilgrids composition part for all depths in commits before 2024-09-30
+
     # Prepare SoilGrids composition data in grassland model format
     composition_to_gmd = 1e-2  # % to proportions for all composition values
     composition_data_gmd = map_depths_soilgrids_grassland_model(
@@ -524,35 +510,18 @@ def soil_data_to_txt_file(
         hihydrosoil_data, hhs_property_names, hhs_conversion_factor, hhs_units_gmd
     )
 
-    # # Prepare SoilGrids nitrogen data in grassland model format
-    # # Not only mineral nitrogen!!
-    # # Sum of total nitrogen (ammonia, organic and reduced nitrogen)
-    # # as measured by Kjeldahl digestion plus nitrate–nitrite
-
-    # # difficult to assess mineral N
-    # # small fraction of total N? general relation?
-    # nitrogen_per_volume = nitrogen_data[0, :] * nitrogen_data[1, :]  # unit: g/dm³ (from: g/kg * kg/dm³)
-    # nitrogen_to_gmd = 1e2 # 10cm depth layers mean 100 dm³ per m²
-    # nitrogen_data_gmd = map_depths_soilgrids_grassland_model(
-    #     nitrogen_per_volume, ["total nitrogen"], nitrogen_to_gmd, ["g/m²"]
-    # )
-    # print("Warning: Total nitrogen data not used! Using default mineral nitrogen value for all depths: 1 g/m².")
-
     # Write collected soil data to TXT file
     if not file_name:
         file_name = construct_soil_data_file_name(
             "soilDataPrepared",
             coordinates,
-            data_complete=data_complete,
         )
 
     # Create data directory if missing
     Path(file_name).parent.mkdir(parents=True, exist_ok=True)
 
     # Soilgrids composition part
-    composition_data_to_write = shape_soildata_for_file(
-        composition_data_mean
-    )  # all depths below
+    composition_data_to_write = shape_soildata_for_file(composition_data_mean)
     composition_header = "\t".join(
         list(map(str.capitalize, composition_property_names))
     )
@@ -568,14 +537,10 @@ def soil_data_to_txt_file(
     # HiHydroSoil part
     hhs_data_to_write = shape_soildata_for_file(hhs_data_gmd)
     gmd_depth_count = np.arange(1, 21).reshape(-1, 1)
-    # gmd_rwc = np.ones((20, 1))
-    # gmd_minn = np.ones((20, 1))
     hhs_data_to_write = np.concatenate(
         (
             gmd_depth_count,
-            # gmd_rwc,
             hhs_data_to_write[:, :2],
-            # gmd_minn,
             hhs_data_to_write[:, 2:4],
         ),
         axis=1,
@@ -583,34 +548,16 @@ def soil_data_to_txt_file(
     gmd_names = [specs["gmd_name"] for specs in hhs_properties.values()]
     hhs_header = "\t".join(map(str, ["Layer"] + gmd_names))
 
-    with open(file_name, "a") as f:  # Open file in append mode
-        f.write("\n")  # Write an empty line
+    with open(file_name, "a") as fh:
+        fh.write("\n")
         np.savetxt(
-            f,  # Use the file handle
+            fh,
             hhs_data_to_write,
             delimiter="\t",
             fmt="%.4f",
             header=hhs_header,
             comments="",
         )
-
-    # # Soilgrids composition part for all depths, only for information
-    # composition_data_to_write = shape_soildata_for_file(composition_data_gmd)
-    # composition_data_to_write = np.concatenate(
-    #     (gmd_depth_count, composition_data_to_write), axis=1
-    # )
-    # composition_header = "Layer\t" + composition_header
-
-    # with open(file_name, "a") as f:  # Open file in append mode
-    #     f.write("\n")  # Write an empty line
-    #     np.savetxt(
-    #         f,  # Use the file handle
-    #         composition_data_to_write,
-    #         delimiter="\t",
-    #         fmt="%.4f",
-    #         header=composition_header,
-    #         comments="",
-    #     )
 
     print(
         f"Processed soil data from Soilgrids and HiHydroSoil written to file '{file_name}'."
