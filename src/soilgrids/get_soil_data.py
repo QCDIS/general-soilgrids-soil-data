@@ -1,6 +1,7 @@
 """
 Module Name: get_soil_data.py
-Description: Functions for downloading and processing selected soil data.
+Description: Functions for downloading and processing selected soil data at given location from
+             SoilGrids and derived data sources (Soilgrids REST API, HiHydroSoil maps).
 
 Copyright (C) 2024
 - Thomas Banitz, Franziska Taubert, Taimur Haider Khan, Helmholtz Centre for Environmental Research GmbH - UFZ, Leipzig, Germany
@@ -152,7 +153,7 @@ def download_soilgrids(request, attempts=6, delay_exponential=8, delay_linear=2)
 
     while attempts > 0:
         attempts -= 1
-        time_stamp = datetime.now(timezone.utc).isoformat()
+        time_stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
         try:
             response = requests.get(request["url"], params=request["params"])
@@ -512,10 +513,7 @@ def soil_data_to_txt_file(
 
     # Write collected soil data to TXT file
     if not file_name:
-        file_name = construct_soil_data_file_name(
-            "soilDataPrepared",
-            coordinates,
-        )
+        file_name = construct_soil_data_file_name("soilDataPrepared", coordinates)
 
     # Create data directory if missing
     Path(file_name).parent.mkdir(parents=True, exist_ok=True)
@@ -567,8 +565,4 @@ def soil_data_to_txt_file(
         file_name = file_name.with_name(
             file_name.stem + "__data_query_protocol" + file_name.suffix
         )
-        ut.list_to_file(
-            data_query_protocol,
-            ["data_source", "time_stamp"],
-            file_name,
-        )
+        ut.list_to_file(data_query_protocol, ["data_source", "time_stamp"], file_name)

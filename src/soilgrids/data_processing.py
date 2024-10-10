@@ -1,6 +1,6 @@
 """
 Module Name: data_processing.py
-Description: Building block for obtaining selected soil data at given location from
+Description: Function for obtaining selected soil data at given location from
              SoilGrids and derived data sources (Soilgrids REST API, HiHydroSoil maps).
 
 Copyright (C) 2024

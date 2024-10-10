@@ -71,7 +71,7 @@ def extract_raster_value(tif_file, coordinates, attempts=5, delay=2):
         tuple: Extracted value (None if extraction failed), and time stamp.
     """
     while attempts > 0:
-        time_stamp = datetime.now(timezone.utc).isoformat()
+        time_stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
         try:
             with rasterio.open(tif_file) as src:
