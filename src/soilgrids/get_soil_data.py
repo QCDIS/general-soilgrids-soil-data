@@ -3,9 +3,12 @@ Module Name: get_soil_data.py
 Description: Functions for downloading and processing selected soil data at given location from
              SoilGrids and derived data sources (Soilgrids REST API, HiHydroSoil maps).
 
+Developed in the BioDT project by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ),
+Tuomas Rossi (CSC) and Taimur Haider Khan (UFZ).
+
 Copyright (C) 2024
-- Thomas Banitz, Franziska Taubert, Taimur Haider Khan, Helmholtz Centre for Environmental Research GmbH - UFZ, Leipzig, Germany
-- Tuomas Rossi, CSC – IT Center for Science Ltd., Espoo, Finland
+- Helmholtz Centre for Environmental Research GmbH - UFZ, Germany
+- CSC - IT Center for Science Ltd., Finland
 
 Licensed under the EUPL, Version 1.2 or - as soon they will be approved
 by the European Commission - subsequent versions of the EUPL (the "Licence").
@@ -16,23 +19,25 @@ https://joinup.ec.europa.eu/software/page/eupl
 
 This project has received funding from the European Union's Horizon Europe Research and Innovation
 Programme under grant agreement No 101057437 (BioDT project, https://doi.org/10.3030/101057437).
-The authors acknowledge the EuroHPC Joint Undertaking and CSC – IT Center for Science Ltd., Finland
-for awarding this project access to the EuroHPC supercomputer LUMI, hosted by CSC – IT Center for
+The authors acknowledge the EuroHPC Joint Undertaking and CSC - IT Center for Science Ltd., Finland
+for awarding this project access to the EuroHPC supercomputer LUMI, hosted by CSC - IT Center for
 Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Access call.
 
 Data sources:
-    SoilGrids (https://soilgrids.org/)
+    SoilGrids™ 2.0:
     - Poggio L., Sousa L.M., Batjes N.H., Heuvelink G.B., Kempen B., Ribeiro E., Rossiter D. (2021):
       SoilGrids 2.0: producing soil information for the globe with quantified spatial uncertainty.
-      SOIL 7: 217‑240. https://doi.org/10.5194/soil-7-217-2021
-    - access via API (https://rest.isric.org/soilgrids/v2.0/docs)
+      SOIL 7: 217-240. https://doi.org/10.5194/soil-7-217-2021
+    - Website: https://soilgrids.org/
+    - Access via API: https://rest.isric.org/soilgrids/v2.0/docs
 
-    HiHydroSoil v2.0 (https://www.futurewater.eu/projects/hihydrosoil/)
+    HiHydroSoil v2.0:
     - Simons, G.W.H., R. Koster, P. Droogers. (2020):
       HiHydroSoil v2.0 - A high resolution soil map of global hydraulic properties.
       FutureWater Report 213.
-    - access via TIF Maps, provided upon request to FutureWater
-    - redistributed with permission and without changes at:
+    - Website: https://www.futurewater.eu/projects/hihydrosoil/
+    - Access via TIF Maps, provided upon request to FutureWater
+    - Redistributed with permission and without changes at:
       http://opendap.biodt.eu/grasslands-pdt/soilMapsHiHydroSoil/
 """
 
