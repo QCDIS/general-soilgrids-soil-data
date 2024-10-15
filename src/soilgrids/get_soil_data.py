@@ -118,14 +118,7 @@ def configure_soilgrids_request(coordinates, property_names):
             "lon": coordinates["lon"],
             "lat": coordinates["lat"],
             "property": property_names,
-            "depth": [
-                "0-5cm",
-                "5-15cm",
-                "15-30cm",
-                "30-60cm",
-                "60-100cm",
-                "100-200cm",
-            ],
+            "depth": ["0-5cm", "5-15cm", "15-30cm", "30-60cm", "60-100cm", "100-200cm"],
             "value": ["mean"],
         },
     }
@@ -208,10 +201,7 @@ def get_soilgrids_data(soilgrids_data, property_names):
 
     # Initialize property_data array with zeros
     property_data = np.full(
-        (
-            len(property_names),
-            len(soilgrids_data["properties"]["layers"][0]["depths"]),
-        ),
+        (len(property_names), len(soilgrids_data["properties"]["layers"][0]["depths"])),
         np.nan,
         dtype=float,
     )
@@ -344,11 +334,7 @@ def get_hihydrosoil_data(coordinates, *, cache=None):
     hhs_depths = ["0-5cm", "5-15cm", "15-30cm", "30-60cm", "60-100cm", "100-200cm"]
 
     # Initialize property_data array with zeros
-    property_data = np.full(
-        (len(hhs_properties), len(hhs_depths)),
-        np.nan,
-        dtype=float,
-    )
+    property_data = np.full((len(hhs_properties), len(hhs_depths)), np.nan, dtype=float)
 
     # Extract values from tif maps for each property and depth
     query_protocol = []
@@ -541,12 +527,7 @@ def soil_data_to_txt_file(
     hhs_data_to_write = shape_soildata_for_file(hhs_data_gmd)
     gmd_depth_count = np.arange(1, 21).reshape(-1, 1)
     hhs_data_to_write = np.concatenate(
-        (
-            gmd_depth_count,
-            hhs_data_to_write[:, :2],
-            hhs_data_to_write[:, 2:4],
-        ),
-        axis=1,
+        (gmd_depth_count, hhs_data_to_write[:, :2], hhs_data_to_write[:, 2:4]), axis=1
     )
     gmd_names = [specs["gmd_name"] for specs in hhs_properties.values()]
     hhs_header = "\t".join(map(str, ["Layer"] + gmd_names))
