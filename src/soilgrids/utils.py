@@ -141,14 +141,14 @@ def check_url(url, attempts=3, delay=2):
     return None
 
 
-def list_to_file(list_to_write, column_names, file_name):
+def list_to_file(list_to_write, file_name, *, column_names=None):
     """
     Write a list of tuples to a text file (tab-separated) or csv file (;-separated) or an Excel file.
 
     Parameters:
         list_to_write (list): List of strings or tuples or dictionaries to be written to the file.
-        column_names (list): List of column names (strings).
-        file_name (str or Path): Path of the output file (suffix determines file type).
+        file_name (str or Path): Path of output file (suffix determines file type).
+        column_names (list): List of column names (strings) to write as header line (default is None).
     """
     # Convert string entries to single item tuples
     list_to_write = [
@@ -161,12 +161,13 @@ def list_to_file(list_to_write, column_names, file_name):
         list_to_write = [
             [entry.get(col, "") for col in column_names] for entry in list_to_write
         ]
-    # Check if all tuples in the list have the same length as the column_names list
-    elif not all(len(entry) == len(column_names) for entry in list_to_write):
+    # Check if all tuples in list have the same length as the column_names list
+    elif column_names and not all(
+        len(entry) == len(column_names) for entry in list_to_write
+    ):
         print(
             f"Error: All tuples in the list must have {len(column_names)} entries (same as column_names)."
         )
-
         return
 
     file_path = Path(file_name)
@@ -176,14 +177,18 @@ def list_to_file(list_to_write, column_names, file_name):
     Path(file_name).parent.mkdir(parents=True, exist_ok=True)
 
     if file_suffix in [".txt", ".csv"]:
-        with open(file_path, "w", newline="", encoding="utf-8") as file:
+        with open(
+            file_path, "w", newline="", encoding="utf-8", errors="replace"
+        ) as file:
             writer = (
                 csv.writer(file, delimiter="\t")
                 if file_suffix == ".txt"
                 else csv.writer(file, delimiter=";")
             )
-            header = column_names
-            writer.writerow(header)  # Header row
+
+            if column_names:
+                header = column_names
+                writer.writerow(header)  # Header row
 
             for entry in list_to_write:
                 writer.writerow(entry)
@@ -191,8 +196,8 @@ def list_to_file(list_to_write, column_names, file_name):
         df = pd.DataFrame(list_to_write, columns=column_names)
         df.to_excel(file_path, index=False)
     else:
-        print(
-            "Error: Unsupported file format. Supported formats are '.txt', '.csv' and '.xlsx'."
+        raise ValueError(
+            "Unsupported file format. Supported formats are '.txt', '.csv' and '.xlsx'."
         )
 
     print(f"List written to file '{file_name}'.")

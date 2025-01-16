@@ -532,7 +532,7 @@ def soil_data_to_txt_file(
     gmd_names = [specs["gmd_name"] for specs in hhs_properties.values()]
     hhs_header = "\t".join(map(str, ["Layer"] + gmd_names))
 
-    with open(file_name, "a") as fh:
+    with open(file_name, "a", encoding="utf-8", errors="replace") as fh:
         fh.write("\n")
         np.savetxt(
             fh,
@@ -551,4 +551,6 @@ def soil_data_to_txt_file(
         file_name = file_name.with_name(
             file_name.stem + "__data_query_protocol" + file_name.suffix
         )
-        ut.list_to_file(data_query_protocol, ["data_source", "time_stamp"], file_name)
+        ut.list_to_file(
+            data_query_protocol, file_name, column_names=["data_source", "time_stamp"]
+        )
