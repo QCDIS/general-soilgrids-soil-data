@@ -1,7 +1,7 @@
 """
 Module Name: get_soil_data.py
 Description: Functions for downloading and processing selected soil data at given location from
-             SoilGrids and derived data sources (Soilgrids REST API, HiHydroSoil maps).
+             SoilGrids and derived data sources (SoilGrids REST API, HiHydroSoil maps).
 
 Developed in the BioDT project by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ),
 Tuomas Rossi (CSC) and Taimur Haider Khan (UFZ).
@@ -199,7 +199,7 @@ def download_soilgrids(request, attempts=6, delay_exponential=8, delay_linear=2)
     Raises:
         Exception: If the download fails after all attempts, raises an exception with the error message and status code.
     """
-    logger.info(f"Soilgrids REST API download from {request['url']} ... ")
+    logger.info(f"SoilGrids REST API download from {request['url']} ... ")
     status_codes_rate = {429}  # codes for retry with exponentially increasing delay
     status_codes_gateway = {502, 503, 504}  # codes for retry with fixed time delay
 
@@ -227,7 +227,7 @@ def download_soilgrids(request, attempts=6, delay_exponential=8, delay_linear=2)
                     time.sleep(delay_linear)
             else:
                 raise Exception(
-                    f"Soilgrids REST API download error: {response.reason} ({response.status_code})."
+                    f"SoilGrids REST API download error: {response.reason} ({response.status_code})."
                 )
         except requests.RequestException as e:
             logger.error(f"Request failed {e}.")
@@ -242,16 +242,16 @@ def download_soilgrids(request, attempts=6, delay_exponential=8, delay_linear=2)
 
 def get_soilgrids_data(soilgrids_data, property_names):
     """
-    Extract property data and units from Soilgrids data.
+    Extract property data and units from SoilGrids data.
 
     Parameters:
-        soilgrids_data (dict): Soilgrids data containing property information.
+        soilgrids_data (dict): SoilGrids data containing property information.
         property_names (list): List of properties to extract data and units for.
 
     Returns:
         2D numpy.ndarray: Property data for various soil properties and depths (nan if no data found).
     """
-    logger.info("Reading Soilgrids data ...")
+    logger.info("Reading SoilGrids data ...")
 
     # Initialize property_data array with zeros
     property_data = np.full(
@@ -365,7 +365,7 @@ def map_depths_soilgrids_grassland_model(
     property_data, property_names, conversion_factor=1, conversion_units=None
 ):
     """
-    Map data from Soilgrids depths to grassland model depths.
+    Map data from SoilGrids depths to grassland model depths.
 
     Parameters:
         property_data (numpy.ndarray): Array containing property data.
@@ -376,7 +376,7 @@ def map_depths_soilgrids_grassland_model(
     Returns:
         numpy.ndarray: Array containing mapped property values.
     """
-    logger.info("Mapping data from Soilgrids depths to grassland model depths ...")
+    logger.info("Mapping data from SoilGrids depths to grassland model depths ...")
 
     # Define number of new depths, 0-200cm in 10cm steps
     new_depths_number = 20
@@ -480,7 +480,7 @@ def soil_data_to_txt_file(
         None
     """
     # SoilGrids nitrogen part of the data in commits before 2024-09-30
-    # Soilgrids composition part for all depths in commits before 2024-09-30
+    # SoilGrids composition part for all depths in commits before 2024-09-30
 
     # Prepare SoilGrids composition data in grassland model format
     composition_to_gmd = 1e-2  # % to proportions for all composition values
@@ -510,7 +510,7 @@ def soil_data_to_txt_file(
     # Create data directory if missing
     Path(file_name).parent.mkdir(parents=True, exist_ok=True)
 
-    # Soilgrids composition part
+    # SoilGrids composition part
     composition_data_to_write = shape_soildata_for_file(composition_data_mean)
     composition_header = "\t".join(
         list(map(str.capitalize, composition_property_names))
@@ -545,7 +545,7 @@ def soil_data_to_txt_file(
         )
 
     logger.info(
-        f"Processed soil data from Soilgrids and HiHydroSoil written to file '{file_name}'."
+        f"Processed soil data from SoilGrids and HiHydroSoil written to file '{file_name}'."
     )
 
     if data_query_protocol:

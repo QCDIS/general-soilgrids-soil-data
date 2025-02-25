@@ -1,7 +1,7 @@
 """
 Module Name: data_processing.py
 Description: Function for obtaining selected soil data at given location from
-             SoilGrids and derived data sources (Soilgrids REST API, HiHydroSoil maps).
+             SoilGrids and derived data sources (SoilGrids REST API, HiHydroSoil maps).
 
 Developed in the BioDT project by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ)
 and Tuomas Rossi (CSC).
@@ -47,7 +47,7 @@ from soilgrids.logger_config import logger
 
 def data_processing(coordinates, *, file_name=None, hhs_cache=None):
     """
-    Download data from Soilgrids and HiHydroSoil maps. Convert to .txt files.
+    Download data from SoilGrids and HiHydroSoil maps. Convert to .txt files.
 
     Parameters:
         coordinates (dict): Dictionary with 'lat' and 'lon' keys ({'lat': float, 'lon': float}).

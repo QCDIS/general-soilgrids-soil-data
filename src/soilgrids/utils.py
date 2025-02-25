@@ -82,7 +82,7 @@ def extract_raster_value(tif_file, coordinates, *, band_number=1, attempts=5, de
             with rasterio.open(tif_file) as src:
                 # Get the target CRS (as str in WKT format) from TIF file
                 target_crs = src.crs.to_wkt()
-                # (HiHydroSoil seems to work with lat/lon too, but better to keep transformation in.)
+                # (HiHydroSoil works with lat/lon too, but better to keep transformation in.)
 
                 # Reproject the coordinates to the target CRS
                 east, north = reproject_coordinates(
