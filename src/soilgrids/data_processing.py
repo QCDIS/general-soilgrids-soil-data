@@ -42,6 +42,7 @@ Data sources:
 """
 
 from soilgrids import get_soil_data as gsd
+from soilgrids.logger_config import logger
 
 
 def data_processing(coordinates, *, file_name=None, hhs_cache=None):
@@ -56,13 +57,17 @@ def data_processing(coordinates, *, file_name=None, hhs_cache=None):
     # SoilGrids nitrogen part of the data in commits before 2024-09-30
 
     if "lat" in coordinates and "lon" in coordinates:
-        print(
+        logger.info(
             f"Preparing soil data for latitude: {coordinates['lat']}, longitude: {coordinates['lon']} ..."
         )
     else:
-        raise ValueError(
-            "Coordinates not correctly defined. Please provide as dictionary ({'lat': float, 'lon': float})!"
-        )
+        try:
+            raise ValueError(
+                "Coordinates not correctly defined. Please provide as dictionary ({'lat': float, 'lon': float})!"
+            )
+        except ValueError as e:
+            logger.error(e)
+            raise
 
     # SoilGrids composition part of the data
     composition_property_names = ["silt", "clay", "sand"]

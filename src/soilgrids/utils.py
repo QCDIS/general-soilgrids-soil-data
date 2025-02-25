@@ -25,7 +25,6 @@ Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Acce
 
 import csv
 import time
-import warnings
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -33,6 +32,8 @@ import pandas as pd
 import pyproj
 import rasterio
 import requests
+
+from soilgrids.logger_config import logger
 
 
 def reproject_coordinates(lat, lon, target_crs):
@@ -94,10 +95,10 @@ def extract_raster_value(tif_file, coordinates, *, band_number=1, attempts=5, de
             return value[0], time_stamp
         except rasterio.errors.RasterioError as e:
             attempts -= 1
-            print(f"Reading TIF file failed (Error {e}).")
+            logger.error(f"Reading TIF file failed (Error {e}).")
 
             if attempts > 0:
-                print(f" Retrying in {delay} seconds ...")
+                logger.info(f" Retrying in {delay} seconds ...")
                 time.sleep(delay)
             else:
                 return None, time_stamp
@@ -159,21 +160,29 @@ def list_to_file(list_to_write, file_name, *, column_names=None):
     # Check if list_to_write contains dictionaries
     if any(isinstance(entry, dict) for entry in list_to_write):
         if not all(isinstance(entry, dict) for entry in list_to_write):
-            raise ValueError(
-                "All entries in the list must be either dictionaries or not dictionaries. Cannot write list with mixed types."
-            )
+            try:
+                raise ValueError(
+                    "All entries in the list must be either dictionaries or not dictionaries. Cannot write list with mixed types."
+                )
+            except ValueError as e:
+                logger.error(e)
+                raise
 
         # Get column names from dictionaries (keys of first dictionary) if not provided
         if not column_names:
-            warnings.warn(
+            logger.warning(
                 "No column names provided. Using keys from first dictionary in list to obtain column names."
             )
             column_names = list(list_to_write[0].keys())
 
         if not column_names:
-            raise ValueError(
-                "No column names provided and no keys found in dictionaries to obtain column names. Cannot write list."
-            )
+            try:
+                raise ValueError(
+                    "No column names provided and no keys found in dictionaries to obtain column names. Cannot write list."
+                )
+            except ValueError as e:
+                logger.error(e)
+                raise
 
         # Convert dictionaries to lists of values based on column_names, empty string if key not found
         list_to_write = [
@@ -184,9 +193,13 @@ def list_to_file(list_to_write, file_name, *, column_names=None):
         if column_names and not all(
             len(entry) == len(column_names) for entry in list_to_write
         ):
-            raise ValueError(
-                "All entries in the list must have the same length as the column names list."
-            )
+            try:
+                raise ValueError(
+                    "All entries in the list must have the same length as the column names list."
+                )
+            except ValueError as e:
+                logger.error(e)
+                raise
 
     file_path = Path(file_name)
     file_suffix = file_path.suffix.lower()
@@ -214,8 +227,12 @@ def list_to_file(list_to_write, file_name, *, column_names=None):
         df = pd.DataFrame(list_to_write, columns=column_names)
         df.to_excel(file_path, index=False)
     else:
-        raise ValueError(
-            "Unsupported file format. Supported formats are '.txt', '.csv' and '.xlsx'."
-        )
+        try:
+            raise ValueError(
+                "Unsupported file format. Supported formats are '.txt', '.csv' and '.xlsx'."
+            )
+        except ValueError as e:
+            logger.error(e)
+            raise
 
-    print(f"List written to file\n'{file_name}'.")
+    logger.info(f"List written to file '{file_name}'.")

@@ -50,6 +50,7 @@ import numpy as np
 import requests
 
 from soilgrids import utils as ut
+from soilgrids.logger_config import logger
 
 # Define HiHydroSoil variable specifications, including:
 #     hhs_name: HiHydroSoil variable name.
@@ -116,9 +117,13 @@ def construct_soil_data_file_name(folder, coordinates, *, file_suffix=".txt"):
         formatted_lon = f"lon{coordinates['lon']:.6f}"
         file_start = f"{formatted_lat}_{formatted_lon}"
     else:
-        raise ValueError(
-            "Coordinates not correctly defined. Please provide as dictionary ({'lat': float, 'lon': float})!"
-        )
+        try:
+            raise ValueError(
+                "Coordinates not correctly defined. Please provide as dictionary ({'lat': float, 'lon': float})!"
+            )
+        except ValueError as e:
+            logger.error(e)
+            raise
 
     file_name = folder / f"{file_start}__2020__soil{file_suffix}"
 
@@ -143,7 +148,11 @@ def shape_soildata_for_file(array):
     elif array.ndim == 2:
         return np.transpose(array)
     else:
-        raise ValueError("Input array must be 1D or 2D.")
+        try:
+            raise ValueError("Input array must be 1D or 2D.")
+        except ValueError as e:
+            logger.error(e)
+            raise
 
 
 def configure_soilgrids_request(coordinates, property_names):
@@ -190,7 +199,7 @@ def download_soilgrids(request, attempts=6, delay_exponential=8, delay_linear=2)
     Raises:
         Exception: If the download fails after all attempts, raises an exception with the error message and status code.
     """
-    print(f"Soilgrids REST API download from {request['url']} ... ")
+    logger.info(f"Soilgrids REST API download from {request['url']} ... ")
     status_codes_rate = {429}  # codes for retry with exponentially increasing delay
     status_codes_gateway = {502, 503, 504}  # codes for retry with fixed time delay
 
@@ -204,27 +213,27 @@ def download_soilgrids(request, attempts=6, delay_exponential=8, delay_linear=2)
             if response.status_code == 200:
                 return response.json(), time_stamp
             elif response.status_code in status_codes_rate:
-                print(f"Request rate limited (Error {response.status_code}).")
+                logger.error(f"Request rate limited (Error {response.status_code}).")
 
                 if attempts > 0:
-                    print(f"Retrying in {delay_exponential} seconds ...")
+                    logger.info(f"Retrying in {delay_exponential} seconds ...")
                     time.sleep(delay_exponential)
                     delay_exponential *= 2
             elif response.status_code in status_codes_gateway:
-                print(f"Request failed (Error {response.status_code}).")
+                logger.error(f"Request failed (Error {response.status_code}).")
 
                 if attempts > 0:
-                    print(f"Retrying in {delay_linear} seconds ...")
+                    logger.info(f"Retrying in {delay_linear} seconds ...")
                     time.sleep(delay_linear)
             else:
                 raise Exception(
                     f"Soilgrids REST API download error: {response.reason} ({response.status_code})."
                 )
         except requests.RequestException as e:
-            print(f"Request failed {e}.")
+            logger.error(f"Request failed {e}.")
 
             if attempts > 0:
-                print(f"Retrying in {delay_linear} seconds ...")
+                logger.info(f"Retrying in {delay_linear} seconds ...")
                 time.sleep(delay_linear)
 
     # After exhausting all attempts
@@ -242,7 +251,7 @@ def get_soilgrids_data(soilgrids_data, property_names):
     Returns:
         2D numpy.ndarray: Property data for various soil properties and depths (nan if no data found).
     """
-    print("Reading Soilgrids data ...")
+    logger.info("Reading Soilgrids data ...")
 
     # Initialize property_data array with zeros
     property_data = np.full(
@@ -265,8 +274,8 @@ def get_soilgrids_data(soilgrids_data, property_names):
                             depth["values"]["mean"] / prop["unit_measure"]["d_factor"]
                         )
 
-                    print(
-                        f"Depth {depth['label']}, {p_name}",
+                    logger.info(
+                        f"Depth {depth['label']}, {p_name} "
                         f"mean: {property_data[p_index, d_index]} {p_units}",
                     )
                 break  # Stop searching once the correct property is found
@@ -294,15 +303,15 @@ def get_hihydrosoil_map_file(property_name, depth, *, cache=None):
         if map_file.is_file():
             return map_file
         else:
-            print(f"Error: Local file '{map_file}' not found!")
-            print("Trying to access via URL ...")
+            logger.error(f"Local file '{map_file}' not found!")
+            logger.info("Trying to access via URL ...")
 
     map_file = "http://opendap.biodt.eu/grasslands-pdt/soilMapsHiHydroSoil/" + file_name
 
     if ut.check_url(map_file):
         return map_file
     else:
-        print(f"Error: File '{map_file}' not found!")
+        logger.error(f"File '{map_file}' not found!")
 
         return None
 
@@ -320,7 +329,7 @@ def get_hihydrosoil_data(coordinates, *, cache=None):
         - Property data for various soil properties and depths (2D numpy.ndarray, nan if no data found),
         - List of query sources and time stamps.
     """
-    print("Reading HiHydroSoil data ...")
+    logger.info("Reading HiHydroSoil data ...")
     hhs_depths = ["0-5cm", "5-15cm", "15-30cm", "30-60cm", "60-100cm", "100-200cm"]
 
     # Initialize property_data array with zeros
@@ -337,16 +346,16 @@ def get_hihydrosoil_data(coordinates, *, cache=None):
 
             if map_file:
                 # Extract and convert value
-                print(f"Reading from file '{map_file}' ...")
+                logger.info(f"Reading from file '{map_file}' ...")
                 value, time_stamp = ut.extract_raster_value(map_file, coordinates)
                 query_protocol.append([map_file, time_stamp])
 
                 if value != -9999:
                     property_data[p_index, d_index] = value * p_specs["map_to_float"]
 
-            print(
-                f"Depth {depth}, {p_name}"
-                f": {property_data[p_index, d_index]:.4f} {p_specs['hhs_unit']}"
+            logger.info(
+                f"Depth {depth}, {p_name}: "
+                f"{property_data[p_index, d_index]:.4f} {p_specs['hhs_unit']}"
             )
 
     return property_data, query_protocol
@@ -367,7 +376,7 @@ def map_depths_soilgrids_grassland_model(
     Returns:
         numpy.ndarray: Array containing mapped property values.
     """
-    print("Mapping data from Soilgrids depths to grassland model depths ...")
+    logger.info("Mapping data from Soilgrids depths to grassland model depths ...")
 
     # Define number of new depths, 0-200cm in 10cm steps
     new_depths_number = 20
@@ -407,16 +416,15 @@ def map_depths_soilgrids_grassland_model(
         mapped_data[:, d_new] = (
             np.mean(data_to_map[:, d_indices], axis=1) * conversion_factor
         )
-        print(f"Depth {start_depth}-{end_depth}cm", end="")
+        log_message = f"Depth {start_depth}-{end_depth}cm "
 
         for p_index in range(len(property_names)):
-            print(
-                f", {property_names[p_index]}"
-                f": {mapped_data[p_index, d_new]:.4f} {conversion_units[p_index]}",
-                end="",
+            log_message += (
+                f", {property_names[p_index]}: "
+                f"{mapped_data[p_index, d_new]:.4f} {conversion_units[p_index]}"
             )
 
-        print("")
+        logger.info(log_message)
 
     return mapped_data
 
@@ -433,14 +441,14 @@ def get_property_means(property_data, property_names, property_units=None):
     Returns:
         numpy.ndarray: Array containing property means.
     """
-    print("Averaging data over all depths ...")
+    logger.info("Averaging data over all depths ...")
     property_means = np.mean(property_data, axis=1)
 
     if property_units is None:
         property_units = [""] * len(property_names)
 
     for p_index in range(len(property_names)):
-        print(
+        logger.info(
             f"Depth 0-200cm, {property_names[p_index]}",
             f"mean: {property_means[p_index]:.4f} {property_units[p_index]}",
         )
@@ -536,7 +544,7 @@ def soil_data_to_txt_file(
             comments="",
         )
 
-    print(
+    logger.info(
         f"Processed soil data from Soilgrids and HiHydroSoil written to file '{file_name}'."
     )
 
@@ -545,5 +553,6 @@ def soil_data_to_txt_file(
             file_name.stem + "__data_query_protocol" + file_name.suffix
         )
         ut.list_to_file(
-            data_query_protocol, file_name, column_names=["data_source", "time_stamp"]
+            data_query_protocol,
+            file_name,  # column_names=["data_source", "time_stamp"]
         )
