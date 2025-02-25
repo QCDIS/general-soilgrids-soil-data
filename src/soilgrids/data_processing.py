@@ -77,8 +77,7 @@ def data_processing(coordinates, *, file_name=None, hhs_cache=None):
 
     # HiHydroSoil part of the data
     hihydrosoil_data, hihydrosoil_queries = gsd.get_hihydrosoil_data(
-        coordinates,
-        cache=hhs_cache,
+        coordinates, cache=hhs_cache
     )
     data_query_protocol.extend(hihydrosoil_queries)
 

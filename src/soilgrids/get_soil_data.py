@@ -44,11 +44,56 @@ Data sources:
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from types import MappingProxyType
 
 import numpy as np
 import requests
 
 from soilgrids import utils as ut
+
+# Define HiHydroSoil variable specifications, including:
+#     hhs_name: HiHydroSoil variable name.
+#     hhs_unit: HiHydroSoil unit.
+#     map_to_float: Conversion factor from HiHydroSoil integer map value to actual float number.
+#     hhs_to_gmd: Conversion factor from HiHydroSoil unit to grassland model unit.
+#     gmd_unit: Grassland model unit.
+#     gmd_name: Grassland model variable name, as used in final soil data file.
+HIHYDROSOIL_SPECS = MappingProxyType(
+    {
+        "field capacity": {
+            "hhs_name": "WCpF2",
+            "hhs_unit": "m³/m³",
+            "map_to_float": 1e-4,
+            "hhs_to_gmd": 1e2,  # to %
+            "gmd_unit": "V%",
+            "gmd_name": "FC[V%]",
+        },
+        "permanent wilting point": {
+            "hhs_name": "WCpF4.2",
+            "hhs_unit": "m³/m³",
+            "map_to_float": 1e-4,
+            "hhs_to_gmd": 1e2,  # to %
+            "gmd_unit": "V%",
+            "gmd_name": "PWP[V%]",
+        },
+        "soil porosity": {
+            "hhs_name": "WCsat",
+            "hhs_unit": "m³/m³",
+            "map_to_float": 1e-4,
+            "hhs_to_gmd": 1e2,  # to %
+            "gmd_unit": "V%",
+            "gmd_name": "POR[V%]",
+        },
+        "saturated hydraulic conductivity": {
+            "hhs_name": "Ksat",
+            "hhs_unit": "cm/d",
+            "map_to_float": 1e-4,
+            "hhs_to_gmd": 1e1,  # cm to mm
+            "gmd_unit": "mm/d",
+            "gmd_name": "KS[mm/d]",
+        },
+    }
+)
 
 
 def construct_soil_data_file_name(folder, coordinates, *, file_suffix=".txt"):
@@ -229,60 +274,6 @@ def get_soilgrids_data(soilgrids_data, property_names):
     return property_data
 
 
-def get_hihydrosoil_specs():
-    """
-    Create a dictionary of HiHydroSoil variable specifications.
-
-    Each variable is identified by its name and includes the following information:
-        hhs_name: HiHydroSoil variable name.
-        hhs_unit: HiHydroSoil unit.
-        map_to_float: Conversion factor from HiHydroSoil integer map value to actual float number.
-        hhs_to_gmd: Conversion factor from HiHydroSoil unit to grassland model unit.
-        gmd_unit: Grassland model unit.
-        gmd_name: Grassland model variable name, as used in final soil data file.
-
-    Returns:
-        dict: Dictionary of variable specifications, where each key is a variable name,
-              and each value is a dictionary of specifications.
-    """
-    hihydrosoil_specs = {
-        "field capacity": {
-            "hhs_name": "WCpF2",
-            "hhs_unit": "m³/m³",
-            "map_to_float": 1e-4,
-            "hhs_to_gmd": 1e2,  # to %
-            "gmd_unit": "V%",
-            "gmd_name": "FC[V%]",
-        },
-        "permanent wilting point": {
-            "hhs_name": "WCpF4.2",
-            "hhs_unit": "m³/m³",
-            "map_to_float": 1e-4,
-            "hhs_to_gmd": 1e2,  # to %
-            "gmd_unit": "V%",
-            "gmd_name": "PWP[V%]",
-        },
-        "soil porosity": {
-            "hhs_name": "WCsat",
-            "hhs_unit": "m³/m³",
-            "map_to_float": 1e-4,
-            "hhs_to_gmd": 1e2,  # to %
-            "gmd_unit": "V%",
-            "gmd_name": "POR[V%]",
-        },
-        "saturated hydraulic conductivity": {
-            "hhs_name": "Ksat",
-            "hhs_unit": "cm/d",
-            "map_to_float": 1e-4,
-            "hhs_to_gmd": 1e1,  # cm to mm
-            "gmd_unit": "mm/d",
-            "gmd_name": "KS[mm/d]",
-        },
-    }
-
-    return hihydrosoil_specs
-
-
 def get_hihydrosoil_map_file(property_name, depth, *, cache=None):
     """
     Generate file path or URL for a HiHydroSoil map based on the provided property name and depth.
@@ -330,16 +321,17 @@ def get_hihydrosoil_data(coordinates, *, cache=None):
         - List of query sources and time stamps.
     """
     print("Reading HiHydroSoil data ...")
-    hhs_properties = get_hihydrosoil_specs()
     hhs_depths = ["0-5cm", "5-15cm", "15-30cm", "30-60cm", "60-100cm", "100-200cm"]
 
     # Initialize property_data array with zeros
-    property_data = np.full((len(hhs_properties), len(hhs_depths)), np.nan, dtype=float)
+    property_data = np.full(
+        (len(HIHYDROSOIL_SPECS), len(hhs_depths)), np.nan, dtype=float
+    )
 
     # Extract values from tif maps for each property and depth
     query_protocol = []
 
-    for p_index, (p_name, p_specs) in enumerate(hhs_properties.items()):
+    for p_index, (p_name, p_specs) in enumerate(HIHYDROSOIL_SPECS.items()):
         for d_index, depth in enumerate(hhs_depths):
             map_file = get_hihydrosoil_map_file(p_specs["hhs_name"], depth, cache=cache)
 
@@ -494,10 +486,11 @@ def soil_data_to_txt_file(
     )
 
     # Prepare HiHydroSoil data in grassland model format
-    hhs_properties = get_hihydrosoil_specs()
-    hhs_property_names = list(hhs_properties.keys())
-    hhs_conversion_factor = [specs["hhs_to_gmd"] for specs in hhs_properties.values()]
-    hhs_units_gmd = [specs["gmd_unit"] for specs in hhs_properties.values()]
+    hhs_property_names = list(HIHYDROSOIL_SPECS.keys())
+    hhs_conversion_factor = [
+        specs["hhs_to_gmd"] for specs in HIHYDROSOIL_SPECS.values()
+    ]
+    hhs_units_gmd = [specs["gmd_unit"] for specs in HIHYDROSOIL_SPECS.values()]
     hhs_data_gmd = map_depths_soilgrids_grassland_model(
         hihydrosoil_data, hhs_property_names, hhs_conversion_factor, hhs_units_gmd
     )
@@ -529,7 +522,7 @@ def soil_data_to_txt_file(
     hhs_data_to_write = np.concatenate(
         (gmd_depth_count, hhs_data_to_write[:, :2], hhs_data_to_write[:, 2:4]), axis=1
     )
-    gmd_names = [specs["gmd_name"] for specs in hhs_properties.values()]
+    gmd_names = [specs["gmd_name"] for specs in HIHYDROSOIL_SPECS.values()]
     hhs_header = "\t".join(map(str, ["Layer"] + gmd_names))
 
     with open(file_name, "a", encoding="utf-8", errors="replace") as fh:
