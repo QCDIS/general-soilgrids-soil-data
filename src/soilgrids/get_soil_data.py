@@ -416,7 +416,7 @@ def map_depths_soilgrids_grassland_model(
         mapped_data[:, d_new] = (
             np.mean(data_to_map[:, d_indices], axis=1) * conversion_factor
         )
-        log_message = f"Depth {start_depth}-{end_depth}cm "
+        log_message = f"Depth {start_depth}-{end_depth}cm"
 
         for p_index in range(len(property_names)):
             log_message += (
