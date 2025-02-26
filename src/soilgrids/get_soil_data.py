@@ -276,7 +276,7 @@ def get_soilgrids_data(soilgrids_data, property_names):
 
                     logger.info(
                         f"Depth {depth['label']}, {p_name} "
-                        f"mean: {property_data[p_index, d_index]} {p_units}",
+                        f"mean: {property_data[p_index, d_index]} {p_units}"
                     )
                 break  # Stop searching once the correct property is found
 
@@ -449,8 +449,8 @@ def get_property_means(property_data, property_names, property_units=None):
 
     for p_index in range(len(property_names)):
         logger.info(
-            f"Depth 0-200cm, {property_names[p_index]}",
-            f"mean: {property_means[p_index]:.4f} {property_units[p_index]}",
+            f"Depth 0-200cm, {property_names[p_index]} "
+            f"mean: {property_means[p_index]:.4f} {property_units[p_index]}"
         )
 
     return property_means
