@@ -21,5 +21,5 @@ setup(
     url=url,
     license=license,
     python_requires=">=3.10",
-    install_requires=install_requires,
+    #install_requires=install_requires,
 )
